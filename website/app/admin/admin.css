@@ -1,0 +1,27 @@
+/*
+  Scoped to .admin-root so the admin section never inherits the
+  customer site's Nunito/Supreme + Cream/Gold/Terracotta system,
+  even though globals.css is shared at the root layout level.
+*/
+.admin-root,
+.admin-root button,
+.admin-root input,
+.admin-root select,
+.admin-root textarea {
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+.admin-root h1,
+.admin-root h2,
+.admin-root h3,
+.admin-root h4 {
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.admin-root {
+  background-color: #f8fafc; /* slate-50 */
+  color: #0f172a; /* slate-900 */
+  min-height: 100vh;
+}
