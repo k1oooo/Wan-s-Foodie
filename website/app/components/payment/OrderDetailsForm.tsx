@@ -1,0 +1,303 @@
+"use client";
+
+import { useRef, useState } from "react";
+import Link from "next/link";
+import { CheckCircle2, MessageCircle, RotateCcw } from "lucide-react";
+import Button from "@/app/ui/Button";
+import { useCart } from "@/lib/cart-context";
+import { WHATSAPP_NUMBER } from "@/lib/site-config";
+import {
+  buildOrderMessage,
+  formatRM,
+  type DeliveryMethod,
+} from "@/lib/order-utils";
+
+export default function OrderDetailsForm() {
+  const { cart, totalPrice, totalBoxes, clearCart } = useCart();
+
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [deliveryMethod, setDeliveryMethod] =
+    useState<DeliveryMethod>("pickup");
+  const [address, setAddress] = useState("");
+
+  const [touched, setTouched] = useState({
+    name: false,
+    phone: false,
+    address: false,
+  });
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [orderSent, setOrderSent] = useState(false);
+
+  const nameRef = useRef<HTMLInputElement>(null);
+  const phoneRef = useRef<HTMLInputElement>(null);
+  const addressRef = useRef<HTMLTextAreaElement>(null);
+
+  const hasItems = totalBoxes > 0;
+  const nameError =
+    customerName.trim().length === 0 ? "Please enter your name." : null;
+  const phoneDigits = customerPhone.replace(/\D/g, "");
+  const phoneError =
+    phoneDigits.length < 9 ? "Please enter a valid phone number." : null;
+  const addressError =
+    deliveryMethod === "delivery" && address.trim().length === 0
+      ? "Please enter your delivery address."
+      : null;
+
+  const isValid = hasItems && !nameError && !phoneError && !addressError;
+
+  const showNameError = (touched.name || submitAttempted) && nameError;
+  const showPhoneError = (touched.phone || submitAttempted) && phoneError;
+  const showAddressError = (touched.address || submitAttempted) && addressError;
+
+  const whatsAppHref = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+    buildOrderMessage({
+      cart,
+      deliveryMethod,
+      address,
+      customerName,
+      customerPhone,
+      notes: "",
+    }),
+  )}`;
+
+  function handleSendOrder() {
+    setSubmitAttempted(true);
+
+    if (!isValid) {
+      if (nameError) {
+        nameRef.current?.focus();
+      } else if (phoneError) {
+        phoneRef.current?.focus();
+      } else if (addressError) {
+        addressRef.current?.focus();
+      }
+      return;
+    }
+
+    window.open(whatsAppHref, "_blank", "noopener,noreferrer");
+    setOrderSent(true);
+  }
+
+  function handleStartNewOrder() {
+    clearCart();
+    setOrderSent(false);
+    setSubmitAttempted(false);
+    setCustomerName("");
+    setCustomerPhone("");
+    setAddress("");
+    setDeliveryMethod("pickup");
+  }
+
+  if (orderSent) {
+    return (
+      <div className="rounded-[28px] bg-white p-6 text-center shadow-sm">
+        <CheckCircle2 className="mx-auto text-[#C1442D]" size={40} />
+        <h2 className="mt-3 font-nunito text-xl font-extrabold tracking-[-0.04em] text-[#1F1A17]">
+          Order Sent!
+        </h2>
+        <p className="mt-2 text-sm text-[#7A6F68]">
+          We&apos;ve opened WhatsApp with your order details. Send the message
+          to Wan&apos;s Foodies to confirm — we&apos;ll reply with the DuitNow
+          QR code for payment.
+        </p>
+
+        <div className="mt-5 flex flex-col gap-2.5 sm:flex-row sm:justify-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setOrderSent(false)}
+          >
+            <RotateCcw size={16} /> Didn&apos;t open? Try again
+          </Button>
+          <Button size="sm" onClick={handleStartNewOrder}>
+            Start a New Order
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-[28px] bg-white p-5 shadow-sm sm:p-6">
+      <h2 className="font-nunito text-lg font-extrabold tracking-[-0.04em] text-[#1F1A17] sm:text-xl">
+        Order Details
+      </h2>
+
+      <div className="mt-3.5 space-y-3">
+        <div>
+          <label
+            htmlFor="customer-name"
+            className="font-nunito text-xs font-extrabold uppercase tracking-[0.1em] text-[#7A6F68]"
+          >
+            Full Name
+          </label>
+          <input
+            ref={nameRef}
+            id="customer-name"
+            required
+            type="text"
+            value={customerName}
+            onChange={(e) => setCustomerName(e.target.value)}
+            onBlur={() => setTouched((prev) => ({ ...prev, name: true }))}
+            placeholder="e.g. Aisyah Rahman"
+            aria-invalid={!!showNameError}
+            aria-describedby={showNameError ? "customer-name-error" : undefined}
+            className={`mt-1.5 w-full rounded-xl border-2 bg-white px-3.5 py-2.5 text-sm text-[#1F1A17] outline-none ${
+              showNameError
+                ? "border-red-400 focus:border-red-400"
+                : "border-[#1F1A17]/15 focus:border-[#C1442D]"
+            }`}
+          />
+          {showNameError && (
+            <p id="customer-name-error" className="mt-1 text-xs text-red-500">
+              {nameError}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label
+            htmlFor="customer-phone"
+            className="font-nunito text-xs font-extrabold uppercase tracking-[0.1em] text-[#7A6F68]"
+          >
+            Phone Number
+          </label>
+          <input
+            ref={phoneRef}
+            id="customer-phone"
+            required
+            type="tel"
+            inputMode="tel"
+            value={customerPhone}
+            onChange={(e) => setCustomerPhone(e.target.value)}
+            onBlur={() => setTouched((prev) => ({ ...prev, phone: true }))}
+            placeholder="e.g. 012-345 6789"
+            aria-invalid={!!showPhoneError}
+            aria-describedby={
+              showPhoneError ? "customer-phone-error" : undefined
+            }
+            className={`mt-1.5 w-full rounded-xl border-2 bg-white px-3.5 py-2.5 text-sm text-[#1F1A17] outline-none ${
+              showPhoneError
+                ? "border-red-400 focus:border-red-400"
+                : "border-[#1F1A17]/15 focus:border-[#C1442D]"
+            }`}
+          />
+          {showPhoneError && (
+            <p id="customer-phone-error" className="mt-1 text-xs text-red-500">
+              {phoneError}
+            </p>
+          )}
+        </div>
+
+        <fieldset>
+          <legend className="font-nunito text-xs font-extrabold uppercase tracking-[0.1em] text-[#7A6F68]">
+            Collection Method
+          </legend>
+          <div className="mt-1.5 grid grid-cols-2 gap-2.5">
+            <button
+              type="button"
+              onClick={() => setDeliveryMethod("pickup")}
+              aria-pressed={deliveryMethod === "pickup"}
+              className={`rounded-full border-2 px-4 py-2 font-nunito text-sm font-extrabold transition-colors ${
+                deliveryMethod === "pickup"
+                  ? "border-[#C1442D] bg-[#C1442D] text-[#FBF7F2]"
+                  : "border-[#1F1A17]/15 text-[#1F1A17]"
+              }`}
+            >
+              Pickup
+            </button>
+            <button
+              type="button"
+              onClick={() => setDeliveryMethod("delivery")}
+              aria-pressed={deliveryMethod === "delivery"}
+              className={`rounded-full border-2 px-4 py-2 font-nunito text-sm font-extrabold transition-colors ${
+                deliveryMethod === "delivery"
+                  ? "border-[#C1442D] bg-[#C1442D] text-[#FBF7F2]"
+                  : "border-[#1F1A17]/15 text-[#1F1A17]"
+              }`}
+            >
+              Delivery
+            </button>
+          </div>
+        </fieldset>
+
+        {deliveryMethod === "delivery" && (
+          <div>
+            <label
+              htmlFor="delivery-address"
+              className="font-nunito text-xs font-extrabold uppercase tracking-[0.1em] text-[#7A6F68]"
+            >
+              Delivery Address
+            </label>
+            <textarea
+              ref={addressRef}
+              id="delivery-address"
+              required
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              onBlur={() => setTouched((prev) => ({ ...prev, address: true }))}
+              rows={2}
+              placeholder="Street, unit, city, postcode"
+              aria-invalid={!!showAddressError}
+              aria-describedby={
+                showAddressError ? "delivery-address-error" : undefined
+              }
+              className={`mt-1.5 w-full rounded-xl border-2 bg-white px-3.5 py-2.5 text-sm text-[#1F1A17] outline-none ${
+                showAddressError
+                  ? "border-red-400 focus:border-red-400"
+                  : "border-[#1F1A17]/15 focus:border-[#C1442D]"
+              }`}
+            />
+            {showAddressError && (
+              <p
+                id="delivery-address-error"
+                className="mt-1 text-xs text-red-500"
+              >
+                {addressError}
+              </p>
+            )}
+            <p className="mt-1 text-xs text-[#7A6F68]">
+              Delivery fee confirmed via WhatsApp based on your location.
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-4 space-y-1.5 border-t border-dashed border-[#1F1A17]/20 pt-3.5">
+        <div className="flex items-center justify-between text-sm text-[#1F1A17]">
+          <span>Subtotal</span>
+          <span>{formatRM(totalPrice)}</span>
+        </div>
+        <div className="flex items-center justify-between font-nunito text-base font-extrabold text-[#1F1A17]">
+          <span>Total</span>
+          <span className="text-[#C1442D]">{formatRM(totalPrice)}</span>
+        </div>
+        <p className="pt-0.5 text-xs text-[#7A6F68]">
+          Pay via DuitNow QR — sent once your order is confirmed.
+        </p>
+      </div>
+
+      {!hasItems && (
+        <p className="mt-3 text-center text-sm text-[#7A6F68]">
+          Your cart is empty —{" "}
+          <Link
+            href="/order"
+            className="font-extrabold text-[#C1442D] underline"
+          >
+            browse the menu
+          </Link>{" "}
+          to add items.
+        </p>
+      )}
+
+      <Button
+        onClick={handleSendOrder}
+        disabled={!hasItems}
+        className="mt-4 w-full"
+      >
+        <MessageCircle size={20} /> Send Order
+      </Button>
+    </div>
+  );
+}
