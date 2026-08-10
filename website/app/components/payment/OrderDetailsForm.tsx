@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, MessageCircle, RotateCcw } from "lucide-react";
+import { AlertCircle, CheckCircle2, MessageCircle, RotateCcw } from "lucide-react";
 import Button from "@/app/ui/Button";
 import { useCart } from "@/lib/cart-context";
 import { WHATSAPP_NUMBER } from "@/lib/site-config";
@@ -11,6 +11,7 @@ import {
   formatRM,
   type DeliveryMethod,
 } from "@/lib/order-utils";
+import { submitOrder } from "@/lib/supabase/orders";
 
 export default function OrderDetailsForm() {
   const { cart, totalPrice, totalBoxes, clearCart } = useCart();
@@ -27,7 +28,13 @@ export default function OrderDetailsForm() {
     address: false,
   });
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [orderSent, setOrderSent] = useState(false);
+  const [lastOrderNumber, setLastOrderNumber] = useState<string | null>(null);
+  const [pendingWhatsAppHref, setPendingWhatsAppHref] = useState<
+    string | null
+  >(null);
 
   const nameRef = useRef<HTMLInputElement>(null);
   const phoneRef = useRef<HTMLInputElement>(null);
@@ -50,19 +57,13 @@ export default function OrderDetailsForm() {
   const showPhoneError = (touched.phone || submitAttempted) && phoneError;
   const showAddressError = (touched.address || submitAttempted) && addressError;
 
-  const whatsAppHref = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
-    buildOrderMessage({
-      cart,
-      deliveryMethod,
-      address,
-      customerName,
-      customerPhone,
-      notes: "",
-    }),
-  )}`;
+  function openWhatsApp(href: string) {
+    window.open(href, "_blank", "noopener,noreferrer");
+  }
 
-  function handleSendOrder() {
+  async function handleSendOrder() {
     setSubmitAttempted(true);
+    setSubmitError(null);
 
     if (!isValid) {
       if (nameError) {
@@ -75,14 +76,50 @@ export default function OrderDetailsForm() {
       return;
     }
 
-    window.open(whatsAppHref, "_blank", "noopener,noreferrer");
-    setOrderSent(true);
+    setIsSubmitting(true);
+    try {
+      const { orderNumber } = await submitOrder({
+        cart,
+        customerName,
+        customerPhone,
+        deliveryMethod,
+        address,
+      });
+
+      const whatsAppHref = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+        buildOrderMessage({
+          cart,
+          deliveryMethod,
+          address,
+          customerName,
+          customerPhone,
+          notes: "",
+          orderNumber,
+        }),
+      )}`;
+
+      setLastOrderNumber(orderNumber);
+      setPendingWhatsAppHref(whatsAppHref);
+      openWhatsApp(whatsAppHref);
+      setOrderSent(true);
+    } catch (err) {
+      setSubmitError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong saving your order. Please try again.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   function handleStartNewOrder() {
     clearCart();
     setOrderSent(false);
     setSubmitAttempted(false);
+    setSubmitError(null);
+    setLastOrderNumber(null);
+    setPendingWhatsAppHref(null);
     setCustomerName("");
     setCustomerPhone("");
     setAddress("");
@@ -96,6 +133,11 @@ export default function OrderDetailsForm() {
         <h2 className="mt-3 font-nunito text-xl font-extrabold tracking-[-0.04em] text-[#1F1A17]">
           Order Sent!
         </h2>
+        {lastOrderNumber && (
+          <p className="mt-1 font-nunito text-sm font-extrabold text-[#C1442D]">
+            Order #{lastOrderNumber}
+          </p>
+        )}
         <p className="mt-2 text-sm text-[#7A6F68]">
           We&apos;ve opened WhatsApp with your order details. Send the message
           to Wan&apos;s Foodies to confirm — we&apos;ll reply with the DuitNow
@@ -106,7 +148,9 @@ export default function OrderDetailsForm() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setOrderSent(false)}
+            onClick={() =>
+              pendingWhatsAppHref && openWhatsApp(pendingWhatsAppHref)
+            }
           >
             <RotateCcw size={16} /> Didn&apos;t open? Try again
           </Button>
@@ -291,12 +335,23 @@ export default function OrderDetailsForm() {
         </p>
       )}
 
+      {submitError && (
+        <div
+          role="alert"
+          className="mt-3 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-600"
+        >
+          <AlertCircle size={16} className="mt-0.5 shrink-0" />
+          <span>{submitError}</span>
+        </div>
+      )}
+
       <Button
         onClick={handleSendOrder}
-        disabled={!hasItems}
+        disabled={!hasItems || isSubmitting}
         className="mt-4 w-full"
       >
-        <MessageCircle size={20} /> Send Order
+        <MessageCircle size={20} />
+        {isSubmitting ? "Sending..." : "Send Order"}
       </Button>
     </div>
   );

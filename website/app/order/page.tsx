@@ -3,6 +3,7 @@ import Navbar from "@/app/components/layout/Navbar";
 import Footer from "@/app/components/layout/Footer";
 import OrderPageClient from "@/app/components/order/OrderPageClient";
 import { SITE_NAME, SITE_URL } from "@/lib/site-config";
+import { getPublicMenu } from "@/lib/menu";
 
 const PAGE_TITLE = `Order Now | ${SITE_NAME}`;
 const PAGE_DESCRIPTION =
@@ -23,12 +24,14 @@ export const metadata: Metadata = {
   },
 };
 
-export default function OrderPage() {
+export default async function OrderPage() {
+  const menu = await getPublicMenu();
+
   return (
     <>
       <Navbar />
       <main className="min-h-screen bg-[#FBF7F2]">
-        <OrderPageClient />
+        <OrderPageClient menu={menu} />
       </main>
       <Footer />
     </>

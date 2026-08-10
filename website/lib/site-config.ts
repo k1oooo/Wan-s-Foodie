@@ -1,6 +1,6 @@
 // Central place for site-wide constants so they only need to be updated once.
 // TODO(Kio): swap in Wan's real WhatsApp number (with country code, no + or spaces).
-export const WHATSAPP_NUMBER = "60123456789";
+export const WHATSAPP_NUMBER = "601154043689";
 
 export const WHATSAPP_DEFAULT_MESSAGE =
   "Hi Wan's Foodies! I'd like to ask about your curry puffs 😊";

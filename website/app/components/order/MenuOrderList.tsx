@@ -1,43 +1,67 @@
 "use client";
 
 import { Minus, Plus } from "lucide-react";
-import { menuData } from "@/lib/menu-data";
 import { formatRM } from "@/lib/order-utils";
 import { useCart } from "@/lib/cart-context";
+import type { MenuCategoryGroup, PublicMenuItem } from "@/lib/types";
 
-export default function MenuOrderList() {
+interface MenuOrderListProps {
+  menu: MenuCategoryGroup[];
+}
+
+export default function MenuOrderList({ menu }: MenuOrderListProps) {
   const { cart, setQuantity } = useCart();
+
+  function addOne(item: PublicMenuItem, currentQty: number) {
+    const nextQty = Math.min(currentQty + 1, item.stock_boxes);
+    setQuantity(
+      { id: item.id, name: item.name, category: item.category, price: item.price_per_box },
+      nextQty,
+    );
+  }
+
+  function removeOne(item: PublicMenuItem, currentQty: number) {
+    setQuantity(
+      { id: item.id, name: item.name, category: item.category, price: item.price_per_box },
+      Math.max(0, currentQty - 1),
+    );
+  }
 
   return (
     <div className="space-y-10">
-      {menuData.map((category) => (
-        <div key={category.category}>
+      {menu.map((group) => (
+        <div key={group.category}>
           <h2 className="font-nunito text-2xl font-extrabold tracking-[-0.04em] text-[#1F1A17] sm:text-3xl">
-            {category.category}
+            {group.label}
           </h2>
           <ul className="mt-4 divide-y divide-[#1F1A17]/10 rounded-3xl border border-[#1F1A17]/10 bg-white/60">
-            {category.items.map((item) => {
-              const qty = cart[item.name] ?? 0;
+            {group.items.map((item) => {
+              const qty = cart[item.id]?.quantity ?? 0;
+              const soldOut = !item.is_available || item.stock_boxes <= 0;
+              const atStockLimit = qty >= item.stock_boxes;
+
               return (
                 <li
-                  key={item.name}
-                  className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
+                  key={item.id}
+                  className={`flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between ${
+                    soldOut ? "opacity-50" : ""
+                  }`}
                 >
                   <div>
                     <p className="font-nunito text-lg font-extrabold tracking-[-0.02em] text-[#1F1A17]">
                       {item.name}
                     </p>
                     <p className="text-sm text-[#7A6F68]">
-                      {formatRM(item.price)} / box of 10 pcs
+                      {soldOut
+                        ? "Sold out"
+                        : `${formatRM(item.price_per_box)} / box of 10 pcs`}
                     </p>
                   </div>
 
                   <div className="flex items-center gap-3 self-start sm:self-auto">
                     <button
                       type="button"
-                      onClick={() =>
-                        setQuantity(item.name, Math.max(0, qty - 1))
-                      }
+                      onClick={() => removeOne(item, qty)}
                       disabled={qty === 0}
                       aria-label={`Decrease ${item.name} quantity`}
                       className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-[#C1442D] text-[#C1442D] transition-opacity disabled:opacity-30"
@@ -52,9 +76,10 @@ export default function MenuOrderList() {
                     </span>
                     <button
                       type="button"
-                      onClick={() => setQuantity(item.name, qty + 1)}
+                      onClick={() => addOne(item, qty)}
+                      disabled={soldOut || atStockLimit}
                       aria-label={`Increase ${item.name} quantity`}
-                      className="flex h-9 w-9 items-center justify-center rounded-full bg-[#C1442D] text-[#FBF7F2] transition-opacity hover:opacity-90"
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-[#C1442D] text-[#FBF7F2] transition-opacity hover:opacity-90 disabled:opacity-30"
                     >
                       <Plus size={16} />
                     </button>

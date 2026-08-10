@@ -1,8 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, ChevronDown, MapPin, Store, Phone } from "lucide-react";
+import {
+  Search,
+  ChevronDown,
+  MapPin,
+  Store,
+  Phone,
+  Lock,
+  Clock,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { Order, OrderStatus, PaymentStatus } from "../_lib/types";
 import {
@@ -10,6 +18,13 @@ import {
   PAYMENT_STATUS_STYLE,
   ORDER_STATUS_FLOW,
 } from "../_lib/category-style";
+import {
+  getLockState,
+  isLockableStatus,
+  formatRemaining,
+} from "../_lib/order-lock";
+import ConfirmDialog from "../_components/ConfirmDialog";
+import StyledSelect from "../_components/StyledSelect";
 import { toast } from "sonner";
 
 function formatRM(amount: number) {
@@ -27,6 +42,21 @@ function formatDate(iso: string) {
 
 const STATUS_FILTERS: (OrderStatus | "all")[] = ["all", ...ORDER_STATUS_FLOW];
 
+const ORDER_STATUS_DOT: Record<OrderStatus, string> = {
+  pending: "bg-slate-400",
+  confirmed: "bg-indigo-500",
+  preparing: "bg-amber-500",
+  ready: "bg-sky-500",
+  completed: "bg-emerald-500",
+  cancelled: "bg-red-500",
+};
+
+interface PendingStatusChange {
+  orderId: string;
+  orderNumber: string;
+  status: OrderStatus;
+}
+
 export default function OrdersClient({
   initialOrders,
 }: {
@@ -38,6 +68,16 @@ export default function OrdersClient({
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [pendingChange, setPendingChange] =
+    useState<PendingStatusChange | null>(null);
+  const [confirming, setConfirming] = useState(false);
+
+  // Ticks every 30s so lock countdowns stay live without a full refetch.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   const filtered = useMemo(() => {
     return orders
@@ -59,12 +99,23 @@ export default function OrdersClient({
       );
   }, [orders, query, statusFilter]);
 
-  async function updateStatus(id: string, status: OrderStatus) {
+  async function applyStatusChange(id: string, status: OrderStatus) {
     setSavingId(id);
 
     const previous = orders;
+    // Finalizing (completed/cancelled) starts the 24h lock countdown;
+    // moving to any other status clears it.
+    const statusFinalizedAt = isLockableStatus(status)
+      ? new Date().toISOString()
+      : null;
 
-    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === id
+          ? { ...o, status, status_finalized_at: statusFinalizedAt }
+          : o,
+      ),
+    );
 
     const order = orders.find((o) => o.id === id);
 
@@ -72,14 +123,13 @@ export default function OrdersClient({
 
     const { error } = await supabase
       .from("orders")
-      .update({ status })
+      .update({ status, status_finalized_at: statusFinalizedAt })
       .eq("id", id);
 
     setSavingId(null);
 
     if (error) {
       setOrders(previous);
-
       toast.error("Couldn't update order status. Please try again.");
     } else {
       toast.success(
@@ -87,9 +137,31 @@ export default function OrdersClient({
           ORDER_STATUS_STYLE[status].label
         }`,
       );
-
       router.refresh();
     }
+  }
+
+  function handleStatusSelect(order: Order, status: OrderStatus) {
+    if (status === order.status) return;
+
+    if (isLockableStatus(status)) {
+      setPendingChange({
+        orderId: order.id,
+        orderNumber: order.order_number,
+        status,
+      });
+      return;
+    }
+
+    applyStatusChange(order.id, status);
+  }
+
+  async function confirmPendingChange() {
+    if (!pendingChange) return;
+    setConfirming(true);
+    await applyStatusChange(pendingChange.orderId, pendingChange.status);
+    setConfirming(false);
+    setPendingChange(null);
   }
 
   async function updatePayment(id: string, payment_status: PaymentStatus) {
@@ -169,6 +241,7 @@ export default function OrdersClient({
           <ul className="divide-y divide-slate-100">
             {filtered.map((order) => {
               const isOpen = expandedId === order.id;
+              const lock = getLockState(order.status_finalized_at, now);
 
               return (
                 <li key={order.id}>
@@ -214,6 +287,18 @@ export default function OrdersClient({
                       <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium capitalize text-slate-600">
                         {order.collection_type}
                       </span>
+
+                      {lock.isLocked && (
+                        <span className="flex items-center gap-1 rounded-full bg-slate-800 px-2 py-0.5 text-xs font-medium text-white">
+                          <Lock className="h-3 w-3" /> Locked
+                        </span>
+                      )}
+                      {lock.isCountingDown && (
+                        <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200">
+                          <Clock className="h-3 w-3" />
+                          Locks in {formatRemaining(lock.msRemaining)}
+                        </span>
+                      )}
                     </div>
 
                     <div className="text-right sm:w-24 sm:shrink-0">
@@ -277,50 +362,86 @@ export default function OrdersClient({
 
                         {/* Actions */}
                         <div className="space-y-3">
-                          <div>
-                            <label className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                              Order status
-                            </label>
+                          {lock.isLocked ? (
+                            <div className="rounded-lg border border-slate-200 bg-white p-3">
+                              <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
+                                <Lock className="h-4 w-4 text-slate-400" />
+                                Order locked
+                              </div>
+                              <p className="mt-1 text-xs text-slate-500">
+                                This order was{" "}
+                                {ORDER_STATUS_STYLE[
+                                  order.status
+                                ].label.toLowerCase()}{" "}
+                                more than 24 hours ago and can no longer be
+                                edited.
+                              </p>
+                            </div>
+                          ) : (
+                            <>
+                              <div>
+                                <label className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                                  Order status
+                                </label>
 
-                            <select
-                              value={order.status}
-                              disabled={savingId === order.id}
-                              onChange={(e) =>
-                                updateStatus(
-                                  order.id,
-                                  e.target.value as OrderStatus,
-                                )
-                              }
-                              className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:opacity-60"
-                            >
-                              {ORDER_STATUS_FLOW.map((s) => (
-                                <option key={s} value={s}>
-                                  {ORDER_STATUS_STYLE[s].label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
+                                <div className="mt-1">
+                                  <StyledSelect
+                                    value={order.status}
+                                    disabled={savingId === order.id}
+                                    dotClassName={
+                                      ORDER_STATUS_DOT[order.status]
+                                    }
+                                    onChange={(e) =>
+                                      handleStatusSelect(
+                                        order,
+                                        e.target.value as OrderStatus,
+                                      )
+                                    }
+                                  >
+                                    {ORDER_STATUS_FLOW.map((s) => (
+                                      <option key={s} value={s}>
+                                        {ORDER_STATUS_STYLE[s].label}
+                                      </option>
+                                    ))}
+                                  </StyledSelect>
+                                </div>
 
-                          <div>
-                            <label className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                              Payment
-                            </label>
+                                {lock.isCountingDown && (
+                                  <p className="mt-1.5 flex items-center gap-1 text-xs text-amber-600">
+                                    <Clock className="h-3 w-3" />
+                                    Locks in {formatRemaining(lock.msRemaining)}
+                                  </p>
+                                )}
+                              </div>
 
-                            <select
-                              value={order.payment_status}
-                              disabled={savingId === order.id}
-                              onChange={(e) =>
-                                updatePayment(
-                                  order.id,
-                                  e.target.value as PaymentStatus,
-                                )
-                              }
-                              className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:opacity-60"
-                            >
-                              <option value="unpaid">Unpaid</option>
-                              <option value="paid">Paid</option>
-                            </select>
-                          </div>
+                              <div>
+                                <label className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                                  Payment
+                                </label>
+
+                                <div className="mt-1">
+                                  <StyledSelect
+                                    value={order.payment_status}
+                                    disabled={savingId === order.id}
+                                    dotClassName={
+                                      order.payment_status === "paid"
+                                        ? "bg-emerald-500"
+                                        : "bg-red-500"
+                                    }
+                                    onChange={(e) =>
+                                      updatePayment(
+                                        order.id,
+                                        e.target.value as PaymentStatus,
+                                      )
+                                    }
+                                  >
+                                    <option value="unpaid">Unpaid</option>
+                                    <option value="paid">Paid</option>
+                                  </StyledSelect>
+                                </div>
+                              </div>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -331,6 +452,24 @@ export default function OrdersClient({
           </ul>
         )}
       </div>
+
+      {pendingChange && (
+        <ConfirmDialog
+          title={`Mark order ${pendingChange.orderNumber} as ${ORDER_STATUS_STYLE[pendingChange.status].label}?`}
+          description={
+            <>
+              You&apos;ll have <strong>24 hours</strong> to make further changes
+              to this order. After that, it will be locked and can no longer be
+              edited.
+            </>
+          }
+          confirmLabel={`Yes, mark as ${ORDER_STATUS_STYLE[pendingChange.status].label}`}
+          tone={pendingChange.status === "cancelled" ? "danger" : "default"}
+          isSubmitting={confirming}
+          onCancel={() => setPendingChange(null)}
+          onConfirm={confirmPendingChange}
+        />
+      )}
     </div>
   );
 }

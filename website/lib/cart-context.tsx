@@ -7,14 +7,25 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { menuData } from "@/lib/menu-data";
+import type { Category } from "@/lib/types";
 
-export type CartState = Record<string, number>; // key: item name, value: quantity of boxes
+export interface CartLine {
+  id: string; // menu_items.id
+  name: string;
+  category: Category;
+  price: number; // price_per_box at the time it was added
+  quantity: number; // boxes
+}
+
+export type CartState = Record<string, CartLine>; // key: menu_item id
 
 interface CartContextValue {
   cart: CartState;
-  setQuantity: (itemName: string, quantity: number) => void;
-  removeItem: (itemName: string) => void;
+  setQuantity: (
+    item: Pick<CartLine, "id" | "name" | "category" | "price">,
+    quantity: number,
+  ) => void;
+  removeItem: (id: string) => void;
   clearCart: () => void;
   totalBoxes: number;
   totalPrice: number;
@@ -22,14 +33,25 @@ interface CartContextValue {
 
 const CartContext = createContext<CartContextValue | undefined>(undefined);
 
-const STORAGE_KEY = "wans-foodies-cart";
+// Bumped from "wans-foodies-cart" to "wans-foodies-cart-v2" because the
+// cart's shape changed (name-keyed number -> id-keyed CartLine object) when
+// the site was connected to Supabase. Old-shape carts left in a returning
+// visitor's browser would otherwise produce NaN totals.
+const STORAGE_KEY = "wans-foodies-cart-v2";
 
-function getItemPrice(itemName: string): number {
-  for (const category of menuData) {
-    const match = category.items.find((item) => item.name === itemName);
-    if (match) return match.price;
-  }
-  return 0;
+function isValidCartState(value: unknown): value is CartState {
+  if (!value || typeof value !== "object") return false;
+  return Object.values(value).every(
+    (line) =>
+      line &&
+      typeof line === "object" &&
+      typeof (line as CartLine).id === "string" &&
+      typeof (line as CartLine).name === "string" &&
+      typeof (line as CartLine).price === "number" &&
+      typeof (line as CartLine).quantity === "number" &&
+      Number.isFinite((line as CartLine).price) &&
+      Number.isFinite((line as CartLine).quantity),
+  );
 }
 
 export function CartProvider({ children }: { children: ReactNode }) {
@@ -40,7 +62,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY);
-      if (stored) setCart(JSON.parse(stored));
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (isValidCartState(parsed)) {
+          setCart(parsed);
+        } else {
+          // Malformed or old-schema data — start fresh rather than crash.
+          window.localStorage.removeItem(STORAGE_KEY);
+        }
+      }
     } catch {
       // Ignore malformed/unavailable storage
     } finally {
@@ -58,22 +88,25 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, [cart, hasLoaded]);
 
-  function setQuantity(itemName: string, quantity: number) {
+  function setQuantity(
+    item: Pick<CartLine, "id" | "name" | "category" | "price">,
+    quantity: number,
+  ) {
     setCart((prev) => {
       const next = { ...prev };
       if (quantity <= 0) {
-        delete next[itemName];
+        delete next[item.id];
       } else {
-        next[itemName] = quantity;
+        next[item.id] = { ...item, quantity };
       }
       return next;
     });
   }
 
-  function removeItem(itemName: string) {
+  function removeItem(id: string) {
     setCart((prev) => {
       const next = { ...prev };
-      delete next[itemName];
+      delete next[id];
       return next;
     });
   }
@@ -82,9 +115,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setCart({});
   }
 
-  const totalBoxes = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
-  const totalPrice = Object.entries(cart).reduce(
-    (sum, [name, qty]) => sum + getItemPrice(name) * qty,
+  const lines = Object.values(cart);
+  const totalBoxes = lines.reduce((sum, line) => sum + line.quantity, 0);
+  const totalPrice = lines.reduce(
+    (sum, line) => sum + line.price * line.quantity,
     0,
   );
 

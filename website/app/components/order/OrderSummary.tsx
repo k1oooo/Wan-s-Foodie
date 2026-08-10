@@ -7,7 +7,7 @@ import { formatRM } from "@/lib/order-utils";
 
 export default function OrderSummary() {
   const { cart, removeItem, totalBoxes, totalPrice } = useCart();
-  const items = Object.entries(cart).filter(([, qty]) => qty > 0);
+  const items = Object.values(cart).filter((line) => line.quantity > 0);
   const hasItems = totalBoxes > 0;
 
   return (
@@ -19,18 +19,19 @@ export default function OrderSummary() {
       {/* Itemized list of what's been added, each removable */}
       <div className="mt-5 space-y-2 border-b border-dashed border-[#1F1A17]/20 pb-5">
         {hasItems ? (
-          items.map(([name, qty]) => (
+          items.map((line) => (
             <div
-              key={name}
+              key={line.id}
               className="flex items-center justify-between gap-3 text-sm text-[#1F1A17] sm:text-base"
             >
               <span className="min-w-0 truncate">
-                {name} <span className="text-[#7A6F68]">x{qty}</span>
+                {line.name}{" "}
+                <span className="text-[#7A6F68]">x{line.quantity}</span>
               </span>
               <button
                 type="button"
-                onClick={() => removeItem(name)}
-                aria-label={`Remove ${name} from order`}
+                onClick={() => removeItem(line.id)}
+                aria-label={`Remove ${line.name} from order`}
                 className="shrink-0 text-[#7A6F68] transition-colors hover:text-[#C1442D]"
               >
                 <X size={16} />

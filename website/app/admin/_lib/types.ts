@@ -53,5 +53,11 @@ export interface Order {
   total_amount: number;
   notes?: string | null;
   created_at: string;
+  /**
+   * Set when status is changed to "completed" or "cancelled"; cleared if
+   * it's moved to any other status. Drives the 24h edit-lock window — see
+   * app/admin/_lib/order-lock.ts.
+   */
+  status_finalized_at: string | null;
   items: OrderItem[];
 }

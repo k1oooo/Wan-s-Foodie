@@ -1,27 +1,27 @@
-import { menuData } from "@/lib/menu-data";
+import type { CartLine, CartState } from "@/lib/cart-context";
 
 export type DeliveryMethod = "pickup" | "delivery";
-
-export type CartState = Record<string, number>; // key: item name, value: quantity of boxes
 
 export function formatRM(amount: number) {
   return `RM${amount.toFixed(2).replace(/\.00$/, "")}`;
 }
 
 export function getCartTotal(cart: CartState): number {
-  let total = 0;
-  for (const category of menuData) {
-    for (const item of category.items) {
-      const qty = cart[item.name] ?? 0;
-      total += qty * item.price;
-    }
-  }
-  return total;
+  return Object.values(cart).reduce(
+    (sum, line) => sum + line.price * line.quantity,
+    0,
+  );
 }
 
 export function getCartItemCount(cart: CartState): number {
-  return Object.values(cart).reduce((sum, qty) => sum + qty, 0);
+  return Object.values(cart).reduce((sum, line) => sum + line.quantity, 0);
 }
+
+const CATEGORY_LABELS: Record<CartLine["category"], string> = {
+  chicken: "Chicken",
+  beef: "Beef",
+  seafood: "Seafood",
+};
 
 export interface CheckoutDetails {
   cart: CartState;
@@ -30,6 +30,7 @@ export interface CheckoutDetails {
   customerName: string;
   customerPhone: string;
   notes: string;
+  orderNumber?: string;
 }
 
 export function buildOrderMessage({
@@ -39,20 +40,29 @@ export function buildOrderMessage({
   customerName,
   customerPhone,
   notes,
+  orderNumber,
 }: CheckoutDetails): string {
   const lines: string[] = [];
 
   lines.push("Hi Wan's Foodies! I'd like to place an order:");
+  if (orderNumber) {
+    lines.push(`*Order #: ${orderNumber}*`);
+  }
   lines.push("");
 
-  for (const category of menuData) {
-    const itemsInCategory = category.items.filter((item) => (cart[item.name] ?? 0) > 0);
-    if (itemsInCategory.length === 0) continue;
+  const byCategory = new Map<CartLine["category"], CartLine[]>();
+  for (const line of Object.values(cart)) {
+    const list = byCategory.get(line.category) ?? [];
+    list.push(line);
+    byCategory.set(line.category, list);
+  }
 
-    lines.push(`*${category.category}*`);
-    for (const item of itemsInCategory) {
-      const qty = cart[item.name];
-      lines.push(`- ${item.name} x${qty} box(es) — ${formatRM(item.price * qty)}`);
+  for (const [category, items] of byCategory) {
+    lines.push(`*${CATEGORY_LABELS[category] ?? category}*`);
+    for (const item of items) {
+      lines.push(
+        `- ${item.name} x${item.quantity} box(es) — ${formatRM(item.price * item.quantity)}`,
+      );
     }
     lines.push("");
   }
@@ -60,7 +70,7 @@ export function buildOrderMessage({
   lines.push(`*Total: ${formatRM(getCartTotal(cart))}*`);
   lines.push("");
   lines.push(
-    `*Fulfilment:* ${deliveryMethod === "pickup" ? "Self pickup" : "Delivery"}`
+    `*Fulfilment:* ${deliveryMethod === "pickup" ? "Self pickup" : "Delivery"}`,
   );
   if (deliveryMethod === "delivery" && address.trim()) {
     lines.push(`*Delivery address:* ${address.trim()}`);
