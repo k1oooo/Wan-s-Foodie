@@ -2,11 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
-import { Plus, Pencil, Trash2, X, ImageOff, PackageX } from "lucide-react";
+import { Plus, Pencil, Trash2, X, PackageX } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { Category, MenuItem } from "../_lib/types";
 import { CATEGORY_STYLE } from "../_lib/category-style";
+import { capitalizeWords } from "../_lib/text";
 import { toast } from "sonner";
 
 const CATEGORIES: Category[] = ["chicken", "beef", "seafood"];
@@ -23,7 +23,6 @@ const EMPTY_DRAFT: DraftItem = {
   price_per_box: 13,
   stock_boxes: 0,
   is_available: true,
-  image_url: "",
 };
 
 export default function MenuClient({
@@ -59,29 +58,29 @@ export default function MenuClient({
 
     setSaving(true);
 
+    const name = capitalizeWords(draft.name.trim());
     const supabase = createClient();
 
     if (draft.id) {
       const { error } = await supabase
         .from("menu_items")
         .update({
-          name: draft.name,
+          name,
           category: draft.category,
           price_per_box: draft.price_per_box,
           stock_boxes: draft.stock_boxes,
           is_available: draft.is_available,
-          image_url: draft.image_url || null,
         })
         .eq("id", draft.id);
 
       if (!error) {
         setItems((prev) =>
           prev.map((i) =>
-            i.id === draft.id ? { ...i, ...draft, id: draft.id! } : i,
+            i.id === draft.id ? { ...i, ...draft, name, id: draft.id! } : i,
           ),
         );
 
-        toast.success(`${draft.name} updated successfully`);
+        toast.success(`${name} updated successfully`);
       } else {
         toast.error("Couldn't save changes. Please try again.");
       }
@@ -92,12 +91,11 @@ export default function MenuClient({
       const { data, error } = await supabase
         .from("menu_items")
         .insert({
-          name: draft.name,
+          name,
           category: draft.category,
           price_per_box: draft.price_per_box,
           stock_boxes: draft.stock_boxes,
           is_available: draft.is_available,
-          image_url: draft.image_url || null,
           sort_order: nextSortOrder,
         })
         .select()
@@ -106,7 +104,7 @@ export default function MenuClient({
       if (!error && data) {
         setItems((prev) => [...prev, data as MenuItem]);
 
-        toast.success(`${draft.name} added successfully`);
+        toast.success(`${name} added successfully`);
       } else {
         toast.error("Couldn't add item. Please try again.");
       }
@@ -251,25 +249,9 @@ export default function MenuClient({
                     className="border-b border-slate-50 last:border-0"
                   >
                     <td className="px-4 py-3 sm:px-5">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-100">
-                          {item.image_url ? (
-                            <Image
-                              src={item.image_url}
-                              alt={item.name}
-                              width={36}
-                              height={36}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <ImageOff className="h-4 w-4 text-slate-400" />
-                          )}
-                        </div>
-
-                        <span className="font-medium text-slate-900">
-                          {item.name}
-                        </span>
-                      </div>
+                      <span className="font-medium text-slate-900">
+                        {item.name}
+                      </span>
                     </td>
 
                     <td className="whitespace-nowrap px-4 py-3 tabular-nums text-slate-700 sm:px-5">
@@ -385,7 +367,12 @@ export default function MenuClient({
 
                 <input
                   value={draft.name}
-                  onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                  onChange={(e) =>
+                    setDraft({
+                      ...draft,
+                      name: capitalizeWords(e.target.value),
+                    })
+                  }
                   placeholder="e.g. Chicken Curry"
                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
                 />
@@ -423,7 +410,7 @@ export default function MenuClient({
                   <input
                     type="number"
                     min={0}
-                    step={0.5}
+                    step={0.01}
                     value={draft.price_per_box}
                     onChange={(e) =>
                       setDraft({

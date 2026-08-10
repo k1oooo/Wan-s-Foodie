@@ -11,7 +11,6 @@ export interface PublicMenuItem {
   price_per_box: number;
   stock_boxes: number;
   is_available: boolean;
-  image_url: string | null;
   sort_order: number;
 }
 

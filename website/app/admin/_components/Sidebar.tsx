@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   ClipboardList,
   UtensilsCrossed,
+  UserCog,
   X,
   CookingPot,
 } from "lucide-react";
@@ -15,6 +16,7 @@ const NAV_ITEMS = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/orders", label: "Orders", icon: ClipboardList },
   { href: "/admin/menu", label: "Menu", icon: UtensilsCrossed },
+  { href: "/admin/users", label: "Users", icon: UserCog },
 ];
 
 interface SidebarProps {
