@@ -32,7 +32,7 @@ export default function About() {
             Our Story
           </span>
 
-          <h2 className="mt-3  text-4xl font-extrabold tracking-[-0.06em] text-[#1F1A17] sm:text-5xl lg:text-6xl">
+          <h2 className="mt-3 font-nunito text-4xl font-extrabold tracking-[-0.06em] text-[#1F1A17] sm:text-5xl lg:text-6xl">
             Made the way it&apos;s
             <span className="text-[#C1442D]"> always been.</span>
           </h2>
