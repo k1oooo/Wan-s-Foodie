@@ -5,7 +5,15 @@ import Button from "@/app/ui/Button";
 import { useCart } from "@/lib/cart-context";
 import { formatRM } from "@/lib/order-utils";
 
-export default function OrderSummary() {
+interface OrderSummaryProps {
+  /** Called right before navigating to /payment — lets a parent (e.g. the
+   * mobile cart sheet in Navbar) close itself instead of staying open
+   * during the page transition. Optional; the sidebar usage on desktop
+   * doesn't need it. */
+  onProceed?: () => void;
+}
+
+export default function OrderSummary({ onProceed }: OrderSummaryProps = {}) {
   const { cart, removeItem, totalBoxes, totalPrice } = useCart();
   const items = Object.values(cart).filter((line) => line.quantity > 0);
   const hasItems = totalBoxes > 0;
@@ -57,7 +65,7 @@ export default function OrderSummary() {
       </div>
 
       {hasItems ? (
-        <Button href="/payment" className="mt-6 w-full">
+        <Button href="/payment" onClick={onProceed} className="mt-6 w-full">
           Proceed to Payment
         </Button>
       ) : (

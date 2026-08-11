@@ -7,58 +7,85 @@ export default async function Menu() {
   return (
     <section
       id="menu"
-      className="flex min-h-screen scroll-mt-24 items-center bg-[#FBF7F2] px-6 py-24 sm:px-10 lg:px-16"
+      className="scroll-mt-24 bg-[#FBF7F2] px-6 py-24 sm:px-10 lg:px-16 lg:py-32"
     >
       <div className="mx-auto w-full max-w-[1240px]">
-        <h2 className="text-center font-nunito text-4xl font-extrabold tracking-[-0.06em] text-[#1F1A17] sm:text-5xl lg:text-6xl">
-          MENU
-        </h2>
+        {/* Heading */}
+        <div className="text-center">
+          <span className="font-nunito text-sm font-extrabold uppercase tracking-[0.18em] text-[#C1442D]">
+            What&apos;s Cooking
+          </span>
+
+          <h2 className="mt-3 font-nunito text-4xl font-extrabold tracking-[-0.06em] text-[#1F1A17] sm:text-5xl lg:text-6xl">
+            Our Menu
+          </h2>
+
+          <p className="mx-auto mt-4 max-w-xl text-base leading-6 text-[#1F1A17]/60">
+            Pick your favourite flavours. Every box comes packed with 10
+            delicious curry puffs, ready for your freezer.
+          </p>
+        </div>
 
         {menu.length === 0 ? (
           <p className="mt-12 text-center text-[#7A6F68]">
-            Our menu is being updated — please check back shortly, or reach
-            out to us on WhatsApp.
+            Our menu is being updated — please check back shortly, or reach out
+            to us on WhatsApp.
           </p>
         ) : (
-          <div className="mt-12 grid grid-cols-1 gap-12 sm:grid-cols-2 lg:mt-16 lg:grid-cols-3 lg:gap-8">
+          <div className="mt-14 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {menu.map((group) => (
               <div
                 key={group.category}
-                className="flex flex-col items-center gap-6"
+                className="rounded-[28px] border border-[#1F1A17]/8 bg-white p-6 shadow-sm"
               >
-                <h3 className="font-nunito text-3xl font-extrabold tracking-[-0.06em] text-[#1F1A17] sm:text-4xl">
-                  {group.label}
-                </h3>
-                <ul className="w-full max-w-[380px] space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-2 w-2 rounded-full bg-[#E3A73B]" />
+
+                  <h3 className="font-nunito text-2xl font-extrabold tracking-[-0.04em] text-[#1F1A17]">
+                    {group.label}
+                  </h3>
+                </div>
+
+                <div className="mt-5 divide-y divide-[#1F1A17]/8">
                   {group.items.map((item) => (
-                    <li
+                    <div
                       key={item.id}
-                      className="flex items-baseline justify-between gap-4 font-nunito text-lg font-extrabold tracking-[-0.03em] text-[#1F1A17] sm:text-xl"
+                      className="flex items-center justify-between gap-4 py-4"
                     >
-                      <span className={item.is_available ? "" : "opacity-40"}>
-                        {item.name}
+                      <div className={item.is_available ? "" : "opacity-40"}>
+                        <p className="font-nunito text-base font-extrabold text-[#1F1A17]">
+                          {item.name}
+                        </p>
+
                         {!item.is_available && (
-                          <span className="ml-2 text-xs font-normal tracking-normal text-[#7A6F68]">
-                            (Sold out)
-                          </span>
+                          <p className="mt-0.5 text-xs text-[#7A6F68]">
+                            Sold out
+                          </p>
                         )}
-                      </span>
+                      </div>
+
                       <span
-                        className={`whitespace-nowrap ${item.is_available ? "text-[#C1442D]" : "text-[#7A6F68]/60"}`}
+                        className={`shrink-0 font-nunito text-base font-extrabold ${
+                          item.is_available
+                            ? "text-[#C1442D]"
+                            : "text-[#7A6F68]/50"
+                        }`}
                       >
                         {formatRM(item.price_per_box)}
                       </span>
-                    </li>
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
             ))}
           </div>
         )}
 
-        <p className="mx-auto mt-12 max-w-[480px] text-center text-sm text-[#1F1A17]/70 sm:text-base">
-          All boxes come with 10 pcs. Prices in Ringgit Malaysia (RM).
-        </p>
+        <div className="mt-10 text-center">
+          <p className="text-sm text-[#1F1A17]/50">
+            All boxes contain 10 pcs · Prices in Ringgit Malaysia (RM)
+          </p>
+        </div>
       </div>
     </section>
   );

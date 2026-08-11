@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, CheckCircle2, MessageCircle, RotateCcw } from "lucide-react";
+import { AlertCircle, MessageCircle } from "lucide-react";
 import Button from "@/app/ui/Button";
 import { useCart } from "@/lib/cart-context";
 import { WHATSAPP_NUMBER } from "@/lib/site-config";
@@ -12,9 +12,20 @@ import {
   type DeliveryMethod,
 } from "@/lib/order-utils";
 import { submitOrder } from "@/lib/supabase/orders";
+import type { ConfirmedOrder } from "./OrderInvoice";
 
-export default function OrderDetailsForm() {
-  const { cart, totalPrice, totalBoxes, clearCart } = useCart();
+interface OrderDetailsFormProps {
+  /** Fired once the order is saved and the WhatsApp link is ready. The
+   * parent (PaymentPageClient) owns the "is there a confirmed order" state
+   * — this form doesn't keep its own copy, so there's no way for the page
+   * header and the form body to disagree about whether an order was sent. */
+  onOrderSent: (order: ConfirmedOrder, whatsAppHref: string) => void;
+}
+
+export default function OrderDetailsForm({
+  onOrderSent,
+}: OrderDetailsFormProps) {
+  const { cart, totalPrice, totalBoxes } = useCart();
 
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -30,11 +41,6 @@ export default function OrderDetailsForm() {
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [orderSent, setOrderSent] = useState(false);
-  const [lastOrderNumber, setLastOrderNumber] = useState<string | null>(null);
-  const [pendingWhatsAppHref, setPendingWhatsAppHref] = useState<
-    string | null
-  >(null);
 
   const nameRef = useRef<HTMLInputElement>(null);
   const phoneRef = useRef<HTMLInputElement>(null);
@@ -57,10 +63,6 @@ export default function OrderDetailsForm() {
   const showPhoneError = (touched.phone || submitAttempted) && phoneError;
   const showAddressError = (touched.address || submitAttempted) && addressError;
 
-  function openWhatsApp(href: string) {
-    window.open(href, "_blank", "noopener,noreferrer");
-  }
-
   async function handleSendOrder() {
     setSubmitAttempted(true);
     setSubmitError(null);
@@ -75,6 +77,14 @@ export default function OrderDetailsForm() {
       }
       return;
     }
+
+    // Open the tab synchronously, right here in the click handler, before
+    // any `await`. Most mobile browsers only allow window.open() to
+    // succeed within the direct, synchronous call stack of a user
+    // gesture — calling it after an awaited network request routinely
+    // gets silently blocked. We fill in the blank tab's URL once the
+    // order is saved and we know the order number.
+    const whatsAppWindow = window.open("", "_blank", "noopener,noreferrer");
 
     setIsSubmitting(true);
     try {
@@ -98,11 +108,30 @@ export default function OrderDetailsForm() {
         }),
       )}`;
 
-      setLastOrderNumber(orderNumber);
-      setPendingWhatsAppHref(whatsAppHref);
-      openWhatsApp(whatsAppHref);
-      setOrderSent(true);
+      if (whatsAppWindow) {
+        whatsAppWindow.location.href = whatsAppHref;
+      } else {
+        // Popup was blocked outright (rare, but possible) — fall back to
+        // a direct same-flow open; the invoice's "Try again" button uses
+        // the same href if this also gets blocked.
+        window.open(whatsAppHref, "_blank", "noopener,noreferrer");
+      }
+
+      onOrderSent(
+        {
+          orderNumber,
+          items: Object.values(cart),
+          total: totalPrice,
+          customerName: customerName.trim(),
+          customerPhone: customerPhone.trim(),
+          deliveryMethod,
+          address: address.trim(),
+          sentAt: new Date().toISOString(),
+        },
+        whatsAppHref,
+      );
     } catch (err) {
+      whatsAppWindow?.close();
       setSubmitError(
         err instanceof Error
           ? err.message
@@ -111,55 +140,6 @@ export default function OrderDetailsForm() {
     } finally {
       setIsSubmitting(false);
     }
-  }
-
-  function handleStartNewOrder() {
-    clearCart();
-    setOrderSent(false);
-    setSubmitAttempted(false);
-    setSubmitError(null);
-    setLastOrderNumber(null);
-    setPendingWhatsAppHref(null);
-    setCustomerName("");
-    setCustomerPhone("");
-    setAddress("");
-    setDeliveryMethod("pickup");
-  }
-
-  if (orderSent) {
-    return (
-      <div className="rounded-[28px] bg-white p-6 text-center shadow-sm">
-        <CheckCircle2 className="mx-auto text-[#C1442D]" size={40} />
-        <h2 className="mt-3 font-nunito text-xl font-extrabold tracking-[-0.04em] text-[#1F1A17]">
-          Order Sent!
-        </h2>
-        {lastOrderNumber && (
-          <p className="mt-1 font-nunito text-sm font-extrabold text-[#C1442D]">
-            Order #{lastOrderNumber}
-          </p>
-        )}
-        <p className="mt-2 text-sm text-[#7A6F68]">
-          We&apos;ve opened WhatsApp with your order details. Send the message
-          to Wan&apos;s Foodies to confirm — we&apos;ll reply with the DuitNow
-          QR code for payment.
-        </p>
-
-        <div className="mt-5 flex flex-col gap-2.5 sm:flex-row sm:justify-center">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              pendingWhatsAppHref && openWhatsApp(pendingWhatsAppHref)
-            }
-          >
-            <RotateCcw size={16} /> Didn&apos;t open? Try again
-          </Button>
-          <Button size="sm" onClick={handleStartNewOrder}>
-            Start a New Order
-          </Button>
-        </div>
-      </div>
-    );
   }
 
   return (

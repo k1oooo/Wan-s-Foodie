@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Navbar from "@/app/components/layout/Navbar";
+import OrderFlowNavbar from "@/app/components/layout/OrderFlowNavbar";
 import PaymentPageClient from "@/app/components/payment/PaymentPageClient.";
 import { SITE_NAME, SITE_URL } from "@/lib/site-config";
 
@@ -24,7 +24,7 @@ export default function PaymentPage() {
     // to the viewport (see PaymentPageClient) so the Send Order button never
     // requires scrolling. The footer would push past the fold.
     <div className="flex flex-col bg-[#FBF7F2] lg:h-screen lg:overflow-hidden">
-      <Navbar />
+      <OrderFlowNavbar />
       <main className="flex-1 lg:min-h-0">
         <PaymentPageClient />
       </main>

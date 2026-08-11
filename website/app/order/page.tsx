@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Navbar from "@/app/components/layout/Navbar";
+import OrderFlowNavbar from "@/app/components/layout/OrderFlowNavbar";
 import Footer from "@/app/components/layout/Footer";
 import OrderPageClient from "@/app/components/order/OrderPageClient";
 import { SITE_NAME, SITE_URL } from "@/lib/site-config";
@@ -29,7 +29,7 @@ export default async function OrderPage() {
 
   return (
     <>
-      <Navbar />
+      <OrderFlowNavbar />
       <main className="min-h-screen bg-[#FBF7F2]">
         <OrderPageClient menu={menu} />
       </main>

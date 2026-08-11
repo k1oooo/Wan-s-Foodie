@@ -31,7 +31,9 @@ export default function OrderPageClient({ menu }: OrderPageClientProps) {
         </div>
       </div>
 
-      <div className="lg:sticky lg:top-28 lg:self-start">
+      {/* Desktop only — on mobile, the cart icon in the navbar opens the
+          same summary in a bottom sheet instead of showing it inline. */}
+      <div className="hidden lg:sticky lg:top-28 lg:block lg:self-start">
         <OrderSummary />
       </div>
     </div>

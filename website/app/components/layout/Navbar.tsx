@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { Menu, X, ShoppingBag } from "lucide-react";
 import Button from "@/app/ui/Button";
+import { useCart } from "@/lib/cart-context";
+import CartSheet from "./CartSheet";
 
 const NAV_LINKS = [
   { label: "Menu", href: "/#menu" },
@@ -13,12 +15,14 @@ const NAV_LINKS = [
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
+  const { totalBoxes } = useCart();
 
   return (
     <header className="sticky top-0 z-50 w-full  px-4 pt-3 sm:px-6">
       <nav
         aria-label="Primary"
-        className="mx-auto flex w-full max-w-[1240px] items-center justify-between rounded-[40px] border-2 border-[#C1442D] bg-[#FBF7F2] px-5 py-2.5 sm:px-8"
+        className="mx-auto flex w-full max-w-7xl items-center justify-between rounded-[40px] border-2 border-[#C1442D] bg-[#FBF7F2] px-4 py-2 sm:px-7"
       >
         <Link
           href="/"
@@ -29,7 +33,7 @@ export default function Navbar() {
         </Link>
 
         {/* Desktop nav */}
-        <ul className="hidden items-center gap-10 font-nunito text-lg font-extrabold tracking-[-0.06em] text-[#1F1A17] md:flex">
+        <ul className="hidden items-center gap-8 font-nunito text-lg font-extrabold tracking-[-0.06em] text-[#1F1A17] md:flex">
           {NAV_LINKS.map((link) => (
             <li key={link.href}>
               <Link
@@ -42,21 +46,39 @@ export default function Navbar() {
           ))}
         </ul>
 
-        <Button href="/order" className="hidden shrink-0 md:inline-flex">
-          Order Now
-        </Button>
+        <div className="hidden md:block">
+          <Button href="/order" size="sm" className="shrink-0">
+            Order Now
+          </Button>
+        </div>
 
-        {/* Mobile menu toggle */}
-        <button
-          type="button"
-          onClick={() => setIsOpen((prev) => !prev)}
-          aria-expanded={isOpen}
-          aria-controls="mobile-nav"
-          aria-label={isOpen ? "Close menu" : "Open menu"}
-          className="flex h-10 w-10 items-center justify-center rounded-full text-[#C1442D] md:hidden"
-        >
-          {isOpen ? <X size={26} /> : <Menu size={26} />}
-        </button>
+        {/* Mobile: cart icon (once something's in it) + hamburger */}
+        <div className="flex items-center gap-1 md:hidden">
+          {totalBoxes > 0 && (
+            <button
+              type="button"
+              onClick={() => setCartOpen(true)}
+              aria-label={`View your order — ${totalBoxes} box${totalBoxes === 1 ? "" : "es"}`}
+              className="relative flex h-9 w-9 items-center justify-center rounded-full text-[#C1442D]"
+            >
+              <ShoppingBag size={22} />
+              <span className="absolute -right-0.5 -top-0.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-[#C1442D] px-1 font-nunito text-[10px] font-extrabold text-[#FBF7F2]">
+                {totalBoxes}
+              </span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setIsOpen((prev) => !prev)}
+            aria-expanded={isOpen}
+            aria-controls="mobile-nav"
+            aria-label={isOpen ? "Close menu" : "Open menu"}
+            className="flex h-9 w-9 items-center justify-center rounded-full text-[#C1442D]"
+          >
+            {isOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </div>
       </nav>
 
       {/* Mobile nav panel */}
@@ -84,6 +106,10 @@ export default function Navbar() {
           </Button>
         </div>
       )}
+
+      {/* Mobile cart pop-up — lets the user check their order without
+          scrolling to the bottom of the order page */}
+      {cartOpen && <CartSheet onClose={() => setCartOpen(false)} />}
     </header>
   );
 }
