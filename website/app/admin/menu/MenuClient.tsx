@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Category, MenuItem } from "../_lib/types";
 import { CATEGORY_STYLE } from "../_lib/category-style";
 import { capitalizeWords } from "../_lib/text";
+import { useSetHeaderActions } from "../_lib/header-actions";
 import { toast } from "sonner";
 
 const CATEGORIES: Category[] = ["chicken", "beef", "seafood"];
@@ -200,17 +201,17 @@ export default function MenuClient({
     }
   }
 
+  useSetHeaderActions(
+    <button
+      onClick={openNew}
+      className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-slate-800"
+    >
+      <Plus className="h-4 w-4" /> Add item
+    </button>,
+  );
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
-        <button
-          onClick={openNew}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-slate-800"
-        >
-          <Plus className="h-4 w-4" /> Add item
-        </button>
-      </div>
-
       {grouped.map(({ category, items: categoryItems }) => (
         <div
           key={category}

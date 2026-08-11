@@ -1,14 +1,21 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Menu } from "lucide-react";
 
 interface TopbarProps {
   title: string;
   subtitle?: string;
   onMenuClick: () => void;
+  actions?: ReactNode;
 }
 
-export default function Topbar({ title, subtitle, onMenuClick }: TopbarProps) {
+export default function Topbar({
+  title,
+  subtitle,
+  onMenuClick,
+  actions,
+}: TopbarProps) {
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-slate-200 bg-white/80 px-4 backdrop-blur sm:px-6">
       <button
@@ -18,7 +25,8 @@ export default function Topbar({ title, subtitle, onMenuClick }: TopbarProps) {
       >
         <Menu className="h-5 w-5" />
       </button>
-      <div className="min-w-0">
+
+      <div className="min-w-0 flex-1">
         <h1 className="truncate text-base font-semibold text-slate-900 sm:text-lg">
           {title}
         </h1>
@@ -28,6 +36,8 @@ export default function Topbar({ title, subtitle, onMenuClick }: TopbarProps) {
           </p>
         )}
       </div>
+
+      {actions && <div className="flex shrink-0 items-center">{actions}</div>}
     </header>
   );
 }

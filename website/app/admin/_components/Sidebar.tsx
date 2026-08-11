@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -9,8 +10,12 @@ import {
   UserCog,
   X,
   CookingPot,
+  FileDown,
+  Loader2,
 } from "lucide-react";
 import SignOutButton from "./SignOutButton";
+import { generateSalesReportPdf } from "../_lib/sales-report";
+import { toast } from "sonner";
 
 const NAV_ITEMS = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -27,6 +32,19 @@ interface SidebarProps {
 
 export default function Sidebar({ open, onClose, userEmail }: SidebarProps) {
   const pathname = usePathname();
+  const [downloading, setDownloading] = useState(false);
+
+  async function handleDownloadReport() {
+    setDownloading(true);
+    try {
+      await generateSalesReportPdf();
+      toast.success("Sales report downloaded successfully");
+    } catch {
+      toast.error("Couldn't generate the report. Please try again.");
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   return (
     <>
@@ -88,6 +106,19 @@ export default function Sidebar({ open, onClose, userEmail }: SidebarProps) {
         </nav>
 
         <div className="border-t border-slate-200 p-3">
+          <button
+            onClick={handleDownloadReport}
+            disabled={downloading}
+            className="mb-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {downloading ? (
+              <Loader2 className="h-4.5 w-4.5 animate-spin" />
+            ) : (
+              <FileDown className="h-4.5 w-4.5" strokeWidth={2} />
+            )}
+            {downloading ? "Generating..." : "Download sales report"}
+          </button>
+
           {userEmail && (
             <p className="truncate px-3 pb-1 text-xs text-slate-400">
               {userEmail}

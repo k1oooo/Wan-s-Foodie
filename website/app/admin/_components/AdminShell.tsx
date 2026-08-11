@@ -4,6 +4,10 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
+import {
+  HeaderActionsProvider,
+  useHeaderActions,
+} from "../_lib/header-actions";
 
 const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   "/admin/dashboard": {
@@ -15,6 +19,7 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
     subtitle: "Manage incoming orders and status",
   },
   "/admin/menu": { title: "Menu", subtitle: "Manage items, pricing and stock" },
+  "/admin/users": { title: "Users", subtitle: "Manage your account access" },
 };
 
 interface AdminShellProps {
@@ -22,14 +27,10 @@ interface AdminShellProps {
   userEmail?: string | null;
 }
 
-export default function AdminShell({ children, userEmail }: AdminShellProps) {
+function AdminShellInner({ children, userEmail }: AdminShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname() ?? "";
-
-  // The login page renders its own full-screen layout — no sidebar/topbar.
-  if (pathname.startsWith("/admin/login")) {
-    return <>{children}</>;
-  }
+  const headerActions = useHeaderActions();
 
   const meta = PAGE_META[pathname] ?? { title: "Admin", subtitle: "" };
 
@@ -45,11 +46,27 @@ export default function AdminShell({ children, userEmail }: AdminShellProps) {
           title={meta.title}
           subtitle={meta.subtitle}
           onMenuClick={() => setSidebarOpen(true)}
+          actions={headerActions}
         />
         <main className="flex-1 px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
           {children}
         </main>
       </div>
     </div>
+  );
+}
+
+export default function AdminShell({ children, userEmail }: AdminShellProps) {
+  const pathname = usePathname() ?? "";
+
+  // The login page renders its own full-screen layout — no sidebar/topbar.
+  if (pathname.startsWith("/admin/login")) {
+    return <>{children}</>;
+  }
+
+  return (
+    <HeaderActionsProvider>
+      <AdminShellInner userEmail={userEmail}>{children}</AdminShellInner>
+    </HeaderActionsProvider>
   );
 }
