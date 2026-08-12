@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2, X, PackageX } from "lucide-react";
+import { Plus, Pencil, Trash2, X, PackageX, ChefHat } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { Category, MenuItem } from "../_lib/types";
 import { CATEGORY_STYLE } from "../_lib/category-style";
@@ -24,6 +24,7 @@ const EMPTY_DRAFT: DraftItem = {
   price_per_box: 13,
   stock_boxes: 0,
   is_available: true,
+  is_chef_recommended: false,
 };
 
 export default function MenuClient({
@@ -71,6 +72,7 @@ export default function MenuClient({
           price_per_box: draft.price_per_box,
           stock_boxes: draft.stock_boxes,
           is_available: draft.is_available,
+          is_chef_recommended: draft.is_chef_recommended,
         })
         .eq("id", draft.id);
 
@@ -97,6 +99,7 @@ export default function MenuClient({
           price_per_box: draft.price_per_box,
           stock_boxes: draft.stock_boxes,
           is_available: draft.is_available,
+          is_chef_recommended: draft.is_chef_recommended,
           sort_order: nextSortOrder,
         })
         .select()
@@ -172,6 +175,43 @@ export default function MenuClient({
     }
   }
 
+  async function toggleChefRecommended(item: MenuItem) {
+    const nextValue = !item.is_chef_recommended;
+
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === item.id ? { ...i, is_chef_recommended: nextValue } : i,
+      ),
+    );
+
+    const supabase = createClient();
+
+    const { error } = await supabase
+      .from("menu_items")
+      .update({ is_chef_recommended: nextValue })
+      .eq("id", item.id);
+
+    if (error) {
+      setItems((prev) =>
+        prev.map((i) =>
+          i.id === item.id
+            ? { ...i, is_chef_recommended: item.is_chef_recommended }
+            : i,
+        ),
+      );
+
+      toast.error("Couldn't update chef's pick. Please try again.");
+    } else {
+      toast.success(
+        nextValue
+          ? `${item.name} marked as chef's pick`
+          : `${item.name} removed from chef's picks`,
+      );
+
+      router.refresh();
+    }
+  }
+
   async function updateStock(item: MenuItem, stock_boxes: number) {
     const clamped = Math.max(0, stock_boxes);
 
@@ -239,6 +279,7 @@ export default function MenuClient({
                   <th className="px-4 py-2.5 sm:px-5">Price / box</th>
                   <th className="px-4 py-2.5 sm:px-5">Stock (boxes)</th>
                   <th className="px-4 py-2.5 sm:px-5">Available</th>
+                  <th className="px-4 py-2.5 sm:px-5">Chef&apos;s pick</th>
                   <th className="px-4 py-2.5 text-right sm:px-5">Actions</th>
                 </tr>
               </thead>
@@ -250,8 +291,14 @@ export default function MenuClient({
                     className="border-b border-slate-50 last:border-0"
                   >
                     <td className="px-4 py-3 sm:px-5">
-                      <span className="font-medium text-slate-900">
+                      <span className="inline-flex items-center gap-1.5 font-medium text-slate-900">
                         {item.name}
+                        {item.is_chef_recommended && (
+                          <ChefHat
+                            className="h-3.5 w-3.5 text-amber-500"
+                            aria-label="Chef's pick"
+                          />
+                        )}
                       </span>
                     </td>
 
@@ -306,6 +353,28 @@ export default function MenuClient({
                     </td>
 
                     <td className="px-4 py-3 sm:px-5">
+                      <button
+                        onClick={() => toggleChefRecommended(item)}
+                        role="switch"
+                        aria-checked={item.is_chef_recommended}
+                        aria-label={`Toggle chef's pick for ${item.name}`}
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                          item.is_chef_recommended
+                            ? "bg-amber-500"
+                            : "bg-slate-200"
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                            item.is_chef_recommended
+                              ? "translate-x-4.5"
+                              : "translate-x-1"
+                          }`}
+                        />
+                      </button>
+                    </td>
+
+                    <td className="px-4 py-3 sm:px-5">
                       <div className="flex justify-end gap-1">
                         <button
                           onClick={() => openEdit(item)}
@@ -330,7 +399,7 @@ export default function MenuClient({
                 {categoryItems.length === 0 && (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={6}
                       className="px-4 py-6 text-center text-sm text-slate-400 sm:px-5"
                     >
                       No items in this category yet.
@@ -456,6 +525,21 @@ export default function MenuClient({
                   className="h-4 w-4 rounded border-slate-300"
                 />
                 Visible on customer site
+              </label>
+
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={draft.is_chef_recommended}
+                  onChange={(e) =>
+                    setDraft({
+                      ...draft,
+                      is_chef_recommended: e.target.checked,
+                    })
+                  }
+                  className="h-4 w-4 rounded border-slate-300"
+                />
+                Chef&apos;s pick (shows a chef hat icon)
               </label>
             </div>
 

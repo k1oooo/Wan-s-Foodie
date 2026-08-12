@@ -19,6 +19,7 @@ export interface MenuItem {
   price_per_box: number;
   stock_boxes: number;
   is_available: boolean;
+  is_chef_recommended: boolean;
   sort_order: number;
 }
 

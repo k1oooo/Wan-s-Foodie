@@ -25,7 +25,7 @@ export async function getPublicMenu(): Promise<MenuCategoryGroup[]> {
   const { data, error } = await supabase
     .from("menu_items")
     .select(
-      "id, name, category, price_per_box, stock_boxes, is_available, sort_order",
+      "id, name, category, price_per_box, stock_boxes, is_available, is_chef_recommended, sort_order",
     )
     .order("sort_order");
 

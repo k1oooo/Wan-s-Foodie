@@ -1,3 +1,4 @@
+import { ChefHat } from "lucide-react";
 import { getPublicMenu } from "@/lib/menu";
 import { formatRM } from "@/lib/order-utils";
 
@@ -53,8 +54,15 @@ export default async function Menu() {
                       className="flex items-center justify-between gap-4 py-4"
                     >
                       <div className={item.is_available ? "" : "opacity-40"}>
-                        <p className="font-nunito text-base font-extrabold text-[#1F1A17]">
+                        <p className="flex items-center gap-1.5 font-nunito text-base font-extrabold text-[#1F1A17]">
                           {item.name}
+                          {item.is_chef_recommended && (
+                            <ChefHat
+                              size={14}
+                              className="shrink-0 text-[#E3A73B]"
+                              aria-label="Chef's recommendation"
+                            />
+                          )}
                         </p>
 
                         {!item.is_available && (

@@ -1,6 +1,6 @@
 "use client";
 
-import { Minus, Plus } from "lucide-react";
+import { ChefHat, Minus, Plus } from "lucide-react";
 import { formatRM } from "@/lib/order-utils";
 import { useCart } from "@/lib/cart-context";
 import type { MenuCategoryGroup, PublicMenuItem } from "@/lib/types";
@@ -15,14 +15,24 @@ export default function MenuOrderList({ menu }: MenuOrderListProps) {
   function addOne(item: PublicMenuItem, currentQty: number) {
     const nextQty = Math.min(currentQty + 1, item.stock_boxes);
     setQuantity(
-      { id: item.id, name: item.name, category: item.category, price: item.price_per_box },
+      {
+        id: item.id,
+        name: item.name,
+        category: item.category,
+        price: item.price_per_box,
+      },
       nextQty,
     );
   }
 
   function removeOne(item: PublicMenuItem, currentQty: number) {
     setQuantity(
-      { id: item.id, name: item.name, category: item.category, price: item.price_per_box },
+      {
+        id: item.id,
+        name: item.name,
+        category: item.category,
+        price: item.price_per_box,
+      },
       Math.max(0, currentQty - 1),
     );
   }
@@ -48,8 +58,15 @@ export default function MenuOrderList({ menu }: MenuOrderListProps) {
                   }`}
                 >
                   <div>
-                    <p className="font-nunito text-lg font-extrabold tracking-[-0.02em] text-[#1F1A17]">
+                    <p className="flex items-center gap-1.5 font-nunito text-lg font-extrabold tracking-[-0.02em] text-[#1F1A17]">
                       {item.name}
+                      {item.is_chef_recommended && (
+                        <ChefHat
+                          size={16}
+                          className="shrink-0 text-[#E3A73B]"
+                          aria-label="Chef's recommendation"
+                        />
+                      )}
                     </p>
                     <p className="text-sm text-[#7A6F68]">
                       {soldOut
