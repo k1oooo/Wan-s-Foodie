@@ -33,6 +33,7 @@ export const ORDER_STATUS_PDF_COLORS: Record<
   ready: { bg: [240, 249, 255], text: [3, 105, 161] },
   completed: { bg: [236, 253, 245], text: [4, 120, 87] },
   cancelled: { bg: [254, 242, 242], text: [185, 28, 28] },
+  refunded: { bg: [250, 245, 255], text: [126, 34, 206] },
 };
 
 // Mirrors PAYMENT_STATUS_STYLE's badge colors from category-style.ts
@@ -42,4 +43,5 @@ export const PAYMENT_STATUS_PDF_COLORS: Record<
 > = {
   unpaid: { bg: [254, 242, 242], text: [185, 28, 28] },
   paid: { bg: [236, 253, 245], text: [4, 120, 87] },
+  refunded: { bg: [250, 245, 255], text: [126, 34, 206] },
 };

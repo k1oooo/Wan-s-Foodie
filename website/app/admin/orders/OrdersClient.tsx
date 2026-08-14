@@ -49,6 +49,7 @@ const ORDER_STATUS_DOT: Record<OrderStatus, string> = {
   ready: "bg-sky-500",
   completed: "bg-emerald-500",
   cancelled: "bg-red-500",
+  refunded: "bg-purple-500",
 };
 
 interface PendingStatusChange {
@@ -103,16 +104,25 @@ export default function OrdersClient({
     setSavingId(id);
 
     const previous = orders;
-    // Finalizing (completed/cancelled) starts the 24h lock countdown;
-    // moving to any other status clears it.
+    // Finalizing (completed/cancelled/refunded) starts the 24h lock
+    // countdown; moving to any other status clears it.
     const statusFinalizedAt = isLockableStatus(status)
       ? new Date().toISOString()
       : null;
+    // A refunded order can't still be "paid" — money went back to the
+    // customer, so payment status follows the order status automatically.
+    const paymentStatusUpdate =
+      status === "refunded" ? { payment_status: "refunded" as const } : {};
 
     setOrders((prev) =>
       prev.map((o) =>
         o.id === id
-          ? { ...o, status, status_finalized_at: statusFinalizedAt }
+          ? {
+              ...o,
+              status,
+              status_finalized_at: statusFinalizedAt,
+              ...paymentStatusUpdate,
+            }
           : o,
       ),
     );
@@ -123,7 +133,11 @@ export default function OrdersClient({
 
     const { error } = await supabase
       .from("orders")
-      .update({ status, status_finalized_at: statusFinalizedAt })
+      .update({
+        status,
+        status_finalized_at: statusFinalizedAt,
+        ...paymentStatusUpdate,
+      })
       .eq("id", id);
 
     setSavingId(null);
@@ -422,11 +436,16 @@ export default function OrdersClient({
                                 <div className="mt-1">
                                   <StyledSelect
                                     value={order.payment_status}
-                                    disabled={savingId === order.id}
+                                    disabled={
+                                      savingId === order.id ||
+                                      order.status === "refunded"
+                                    }
                                     dotClassName={
                                       order.payment_status === "paid"
                                         ? "bg-emerald-500"
-                                        : "bg-red-500"
+                                        : order.payment_status === "refunded"
+                                          ? "bg-purple-500"
+                                          : "bg-red-500"
                                     }
                                     onChange={(e) =>
                                       updatePayment(
@@ -437,8 +456,18 @@ export default function OrdersClient({
                                   >
                                     <option value="unpaid">Unpaid</option>
                                     <option value="paid">Paid</option>
+                                    {order.payment_status === "refunded" && (
+                                      <option value="refunded">Refunded</option>
+                                    )}
                                   </StyledSelect>
                                 </div>
+
+                                {order.status === "refunded" && (
+                                  <p className="mt-1.5 text-xs text-slate-500">
+                                    Payment status is locked once an order is
+                                    refunded.
+                                  </p>
+                                )}
                               </div>
                             </>
                           )}
@@ -464,7 +493,12 @@ export default function OrdersClient({
             </>
           }
           confirmLabel={`Yes, mark as ${ORDER_STATUS_STYLE[pendingChange.status].label}`}
-          tone={pendingChange.status === "cancelled" ? "danger" : "default"}
+          tone={
+            pendingChange.status === "cancelled" ||
+            pendingChange.status === "refunded"
+              ? "danger"
+              : "default"
+          }
           isSubmitting={confirming}
           onCancel={() => setPendingChange(null)}
           onConfirm={confirmPendingChange}

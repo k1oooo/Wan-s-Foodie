@@ -5,7 +5,11 @@ import type { OrderStatus } from "./types";
 export const LOCK_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 // Only these statuses start the lock countdown.
-export const LOCKABLE_STATUSES: OrderStatus[] = ["completed", "cancelled"];
+export const LOCKABLE_STATUSES: OrderStatus[] = [
+  "completed",
+  "cancelled",
+  "refunded",
+];
 
 export function isLockableStatus(status: OrderStatus): boolean {
   return LOCKABLE_STATUSES.includes(status);

@@ -51,6 +51,10 @@ export const ORDER_STATUS_STYLE: Record<
     label: "Cancelled",
     badge: "bg-red-50 text-red-700 ring-1 ring-inset ring-red-200",
   },
+  refunded: {
+    label: "Refunded",
+    badge: "bg-purple-50 text-purple-700 ring-1 ring-inset ring-purple-200",
+  },
 };
 
 export const PAYMENT_STATUS_STYLE: Record<
@@ -65,6 +69,10 @@ export const PAYMENT_STATUS_STYLE: Record<
     label: "Paid",
     badge: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200",
   },
+  refunded: {
+    label: "Refunded",
+    badge: "bg-purple-50 text-purple-700 ring-1 ring-inset ring-purple-200",
+  },
 };
 
 export const ORDER_STATUS_FLOW: OrderStatus[] = [
@@ -74,4 +82,5 @@ export const ORDER_STATUS_FLOW: OrderStatus[] = [
   "ready",
   "completed",
   "cancelled",
+  "refunded",
 ];
