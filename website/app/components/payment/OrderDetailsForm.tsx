@@ -84,7 +84,13 @@ export default function OrderDetailsForm({
     // gesture — calling it after an awaited network request routinely
     // gets silently blocked. We fill in the blank tab's URL once the
     // order is saved and we know the order number.
-    const whatsAppWindow = window.open("", "_blank", "noopener,noreferrer");
+    //
+    // Deliberately NOT passing "noopener" here: per spec, window.open()
+    // returns null when noopener is set, which would throw away our
+    // reference to the tab before we ever get to navigate it. Instead we
+    // null out `.opener` manually right before navigating (see below) —
+    // same reverse-tabnabbing protection, but we keep the handle.
+    const whatsAppWindow = window.open("", "_blank");
 
     setIsSubmitting(true);
     try {
@@ -109,6 +115,16 @@ export default function OrderDetailsForm({
       )}`;
 
       if (whatsAppWindow) {
+        // Sever the opener link before navigating away, so the WhatsApp
+        // page can't reach back into this tab (reverse tabnabbing) — the
+        // same protection "noopener" gives, applied after the fact so we
+        // could still hold a reference to navigate the tab ourselves.
+        try {
+          whatsAppWindow.opener = null;
+        } catch {
+          // Some browsers make `.opener` read-only; navigating still works
+          // fine without this, it's a defense-in-depth step only.
+        }
         whatsAppWindow.location.href = whatsAppHref;
       } else {
         // Popup was blocked outright (rare, but possible) — fall back to
