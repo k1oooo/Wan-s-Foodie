@@ -3,7 +3,7 @@
 export const WHATSAPP_NUMBER = "601154043689";
 
 export const WHATSAPP_DEFAULT_MESSAGE =
-  "Hi Wan's Foodies! I'd like to ask about your curry puffs 😊";
+  "Hi Wan's Foodies! I'd like to ask about your curry puffs.";
 
 export function buildWhatsAppLink(message: string = WHATSAPP_DEFAULT_MESSAGE) {
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
