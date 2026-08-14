@@ -19,16 +19,14 @@ export interface SubmitOrderResult {
 }
 
 /**
- * Writes the order to Supabase (`orders` + `order_items`) so it shows up in
- * the admin panel immediately. Runs as two inserts rather than a single RPC
- * because the site has no customer accounts — this needs INSERT policies
- * that allow anonymous writes to `orders` and `order_items` (see the SQL
- * notes shared alongside this integration). Stock decrement is left to the
- * existing `order_items` trigger rather than duplicated here.
- *
- * If the order_items insert fails after the order row was created, the
- * order is deleted as a best-effort rollback so it doesn't show up as an
- * empty phantom order in the admin panel.
+ * Writes the order to Supabase via the `create_order` Postgres function
+ * (see 1_create_order_function.sql) so it shows up in the admin panel
+ * immediately. This runs as a single RPC rather than two client-side
+ * inserts because the site has no customer accounts — `anon` never gets
+ * direct table access to `orders`/`order_items`, only permission to call
+ * this one function, which validates and writes both rows in one
+ * transaction (automatic rollback if anything fails, no manual cleanup
+ * needed here).
  */
 export async function submitOrder({
   cart,
@@ -49,55 +47,33 @@ export async function submitOrder({
     0,
   );
 
-  const { data: order, error: orderError } = await supabase
-    .from("orders")
-    .insert({
-      customer_name: customerName.trim(),
-      customer_phone: customerPhone.trim(),
-      collection_type: deliveryMethod,
-      delivery_address: deliveryMethod === "delivery" ? address.trim() : null,
-      notes: notes.trim() || null,
-      status: "pending",
-      payment_status: "unpaid",
-      total_amount: totalAmount,
-    })
-    .select("id, order_number")
-    .single();
+  const items = lines.map((line) => ({
+    menu_item_id: line.id,
+    item_name: line.name,
+    quantity_boxes: line.quantity,
+    price_at_order: line.price,
+  }));
 
-  if (orderError || !order) {
-    console.error("Failed to create order:", describeSupabaseError(orderError));
+  const { data, error } = await supabase
+    .rpc("create_order", {
+      p_customer_name: customerName.trim(),
+      p_customer_phone: customerPhone.trim(),
+      p_collection_type: deliveryMethod,
+      p_delivery_address: deliveryMethod === "delivery" ? address.trim() : null,
+      p_notes: notes.trim() || null,
+      p_total_amount: totalAmount,
+      p_items: items,
+    })
+    .single<{ order_id: string; order_number: string }>();
+
+  if (error || !data) {
+    console.error("Failed to create order:", describeSupabaseError(error));
     throw new Error(
       "We couldn't save your order. Please check your connection and try again.",
     );
   }
 
-  const orderItems = lines.map((line) => ({
-    order_id: order.id,
-    menu_item_id: line.id,
-    item_name: line.name,
-    quantity_boxes: line.quantity,
-    price_at_order: line.price,
-    // subtotal is intentionally omitted — it's a generated column in
-    // Supabase (price_at_order * quantity_boxes), computed by the DB.
-  }));
-
-  const { error: itemsError } = await supabase
-    .from("order_items")
-    .insert(orderItems);
-
-  if (itemsError) {
-    console.error(
-      "Failed to create order items:",
-      describeSupabaseError(itemsError),
-    );
-    // Best-effort rollback so a failed order doesn't linger as an empty row.
-    await supabase.from("orders").delete().eq("id", order.id);
-    throw new Error(
-      "We couldn't save your order items. Please try again — nothing was charged.",
-    );
-  }
-
-  return { orderId: order.id, orderNumber: order.order_number };
+  return { orderId: data.order_id, orderNumber: data.order_number };
 }
 
 /**
