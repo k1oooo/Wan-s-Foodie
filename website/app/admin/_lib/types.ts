@@ -8,9 +8,10 @@ export type OrderStatus =
   | "preparing"
   | "ready"
   | "completed"
-  | "cancelled";
+  | "cancelled"
+  | "refunded";
 
-export type PaymentStatus = "unpaid" | "paid";
+export type PaymentStatus = "unpaid" | "paid" | "refunded";
 
 export interface MenuItem {
   id: string;

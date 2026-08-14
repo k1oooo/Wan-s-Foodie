@@ -24,6 +24,23 @@ export interface MenuItem {
   sort_order: number;
 }
 
+/**
+ * Public-facing menu item.
+ *
+ * Kept separate from MenuItem so the public menu can have its own
+ * type if the fields exposed to customers change later.
+ */
+export type PublicMenuItem = MenuItem;
+
+/**
+ * A category of menu items displayed on the public ordering page.
+ */
+export interface MenuCategoryGroup {
+  category: Category;
+  label: string;
+  items: PublicMenuItem[];
+}
+
 export interface OrderItem {
   id: string;
   menu_item_id: string | null;
@@ -54,11 +71,13 @@ export interface Order {
   total_amount: number;
   notes?: string | null;
   created_at: string;
+
   /**
    * Set when status is changed to "completed" or "cancelled"; cleared if
-   * it's moved to any other status. Drives the 24h edit-lock window — see
-   * app/admin/_lib/order-lock.ts.
+   * it's moved to any other status. Drives the 24h edit-lock window —
+   * see app/admin/_lib/order-lock.ts.
    */
   status_finalized_at: string | null;
+
   items: OrderItem[];
 }
