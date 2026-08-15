@@ -1,4 +1,5 @@
 import { SITE_NAME } from "@/lib/site-config";
+import Link from "next/link";
 
 export default function Footer() {
   const year = new Date().getFullYear();
@@ -9,9 +10,11 @@ export default function Footer() {
         <p className="tracking-[-0.02em]">
           © {year} {SITE_NAME}
         </p>
-        <p className="tracking-[-0.02em]">
-          Site By <span className="font-semibold">&lt;KioWeb/&gt;</span>
-        </p>
+        <Link href="https://kio-portfolio.vercel.app/" target="_blank">
+          <p className="tracking-[-0.02em]">
+            Site By <span className="font-semibold">&lt;KioWeb/&gt;</span>
+          </p>
+        </Link>
       </div>
     </footer>
   );

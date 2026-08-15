@@ -12,7 +12,7 @@ export default async function Menu() {
     >
       <div className="mx-auto w-full max-w-[1240px]">
         {/* Heading */}
-        <div className="text-center">
+        <div className="text-left">
           <span className="font-nunito text-sm font-extrabold uppercase tracking-[0.18em] text-[#C1442D]">
             What&apos;s Cooking
           </span>
@@ -21,7 +21,7 @@ export default async function Menu() {
             Our Menu
           </h2>
 
-          <p className="mx-auto mt-4 max-w-xl text-base leading-6 text-[#1F1A17]/60">
+          <p className=" mt-4 max-w-xl text-base leading-6 text-[#1F1A17]/60">
             Pick your favourite flavours. Every box comes packed with 10
             delicious curry puffs, ready for your freezer.
           </p>
@@ -33,57 +33,65 @@ export default async function Menu() {
             to us on WhatsApp.
           </p>
         ) : (
-          <div className="mt-14 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-14 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {menu.map((group) => (
+              // "Menu ticket": a terracotta header band with a scalloped
+              // tear edge into a cream body — the printed hawker-menu feel
+              // this section is going for, built from the same
+              // cream/terracotta/gold tokens used across the rest of the
+              // site rather than a new palette.
               <div
                 key={group.category}
-                className="rounded-[28px] border border-[#1F1A17]/8 bg-white p-6 shadow-sm"
+                className="overflow-hidden rounded-[28px] border-2 border-[#C1442D] bg-[#FBF7F2] shadow-sm"
               >
-                <div className="flex items-center gap-3">
-                  <div className="h-2 w-2 rounded-full bg-[#E3A73B]" />
-
-                  <h3 className="font-nunito text-2xl font-extrabold tracking-[-0.04em] text-[#1F1A17]">
+                <div className="bg-[#C1442D] px-6 pb-4 pt-5">
+                  <h3 className="flex items-center justify-center gap-2.5 font-nunito text-xl font-extrabold uppercase tracking-[0.06em] text-[#FBF7F2]">
                     {group.label}
                   </h3>
                 </div>
 
-                <div className="mt-5 divide-y divide-[#1F1A17]/8">
+                <ul className="flex flex-col gap-3 px-6 pb-6 pt-5 sm:px-7">
                   {group.items.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center justify-between gap-4 py-4"
-                    >
-                      <div className={item.is_available ? "" : "opacity-40"}>
-                        <p className="flex items-center gap-1.5 font-nunito text-base font-extrabold text-[#1F1A17]">
-                          {item.name}
-                          {item.is_chef_recommended && (
-                            <ChefHat
-                              size={14}
-                              className="shrink-0 text-[#E3A73B]"
-                              aria-label="Chef's recommendation"
-                            />
-                          )}
-                        </p>
-
-                        {!item.is_available && (
-                          <p className="mt-0.5 text-xs text-[#7A6F68]">
-                            Sold out
-                          </p>
-                        )}
-                      </div>
-
+                    <li key={item.id} className="flex items-baseline gap-2.5">
                       <span
-                        className={`shrink-0 font-nunito text-base font-extrabold ${
+                        className={`flex items-baseline gap-1.5 font-nunito text-base font-extrabold ${
                           item.is_available
-                            ? "text-[#C1442D]"
-                            : "text-[#7A6F68]/50"
+                            ? "text-[#1F1A17]"
+                            : "text-[#7A6F68] line-through decoration-2"
                         }`}
                       >
-                        {formatRM(item.price_per_box)}
+                        {item.name}
+                        {item.is_chef_recommended && (
+                          <span className="inline-flex shrink-0 translate-y-[-1px] items-center gap-1 rounded-full bg-[#E3A73B]/15 px-1.5 py-0.5 font-nunito text-[10px] font-extrabold uppercase tracking-[0.04em] text-[#C1442D]">
+                            <ChefHat size={11} aria-hidden="true" />
+                            Chef&apos;s Pick
+                          </span>
+                        )}
                       </span>
-                    </div>
+
+                      {/* Dotted leader line — the classic printed-menu
+                          device connecting a dish to its price. */}
+                      <span
+                        aria-hidden="true"
+                        className={`mb-1 h-0 flex-1 border-b-2 border-dotted ${
+                          item.is_available
+                            ? "border-[#1F1A17]/20"
+                            : "border-[#1F1A17]/10"
+                        }`}
+                      />
+
+                      {item.is_available ? (
+                        <span className="shrink-0 font-nunito text-base font-extrabold text-[#C1442D]">
+                          {formatRM(item.price_per_box)}
+                        </span>
+                      ) : (
+                        <span className="shrink-0 -rotate-3 rounded border border-[#7A6F68]/40 px-1.5 py-0.5 font-nunito text-[10px] font-extrabold uppercase tracking-[0.04em] text-[#7A6F68]">
+                          Sold Out
+                        </span>
+                      )}
+                    </li>
                   ))}
-                </div>
+                </ul>
               </div>
             ))}
           </div>

@@ -20,92 +20,105 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 w-full  px-4 pt-3 sm:px-6">
-      <nav
-        aria-label="Primary"
-        className="mx-auto flex w-full max-w-7xl items-center justify-between rounded-[40px] border-2 border-[#C1442D] bg-[#FBF7F2] px-4 py-2 sm:px-7"
-      >
-        <Link
-          href="/"
-          className="shrink-0 font-nunito text-xl font-extrabold tracking-[-0.06em] sm:text-2xl"
+      {/* relative wrapper: the dropdown below is positioned against this,
+          not against the header, so it can overlay page content instead of
+          adding to the header's own (reserved) height */}
+      <div className="relative mx-auto w-full max-w-7xl">
+        <nav
+          aria-label="Primary"
+          className={`flex w-full items-center justify-between border-2 border-[#C1442D] bg-[#FBF7F2] px-3 py-2 sm:px-7 ${
+            isOpen
+              ? "rounded-t-[32px] rounded-b-none border-b-0"
+              : "rounded-[40px]"
+          }`}
         >
-          <span className="text-[#E3A73B]">Wan&apos;s</span>{" "}
-          <span className="text-[#C1442D]">Foodies</span>
-        </Link>
+          <Link
+            href="/"
+            className="shrink-0 font-nunito text-xl font-extrabold tracking-[-0.06em] sm:text-2xl"
+          >
+            <span className="text-[#E3A73B]">Wan&apos;s</span>{" "}
+            <span className="text-[#C1442D]">Foodies</span>
+          </Link>
 
-        {/* Desktop nav */}
-        <ul className="hidden items-center gap-8 font-nunito text-lg font-extrabold tracking-[-0.06em] text-[#1F1A17] md:flex">
-          {NAV_LINKS.map((link) => (
-            <li key={link.href}>
+          {/* Desktop nav */}
+          <ul className="hidden items-center gap-8 font-nunito text-lg font-extrabold tracking-[-0.06em] text-[#1F1A17] md:flex">
+            {NAV_LINKS.map((link) => (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  className="transition-colors hover:text-[#C1442D]"
+                >
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+
+          <div className="hidden md:block">
+            <Button href="/order" size="sm" className="shrink-0">
+              Order Now
+            </Button>
+          </div>
+
+          {/* Mobile: cart icon (once something's in it) + hamburger */}
+          <div className="flex items-center gap-1 md:hidden">
+            {totalBoxes > 0 && (
+              <button
+                type="button"
+                onClick={() => setCartOpen(true)}
+                aria-label={`View your order — ${totalBoxes} box${totalBoxes === 1 ? "" : "es"}`}
+                className="relative flex h-9 w-9 items-center justify-center rounded-full text-[#C1442D]"
+              >
+                <ShoppingBag size={22} />
+                <span className="absolute -right-0.5 -top-0.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-[#C1442D] px-1 font-nunito text-[10px] font-extrabold text-[#FBF7F2]">
+                  {totalBoxes}
+                </span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setIsOpen((prev) => !prev)}
+              aria-expanded={isOpen}
+              aria-controls="mobile-nav"
+              aria-label={isOpen ? "Close menu" : "Open menu"}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-[#C1442D]"
+            >
+              {isOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+          </div>
+        </nav>
+
+        {/* Mobile nav panel — absolutely positioned so it overlays the page
+            below (instead of being in normal flow and pushing content
+            down), while the matching top-radius/border-radius and shared
+            side/bottom border make it read as one continuous container
+            with the nav bar above it rather than a second floating box. */}
+        {isOpen && (
+          <div
+            id="mobile-nav"
+            className="absolute inset-x-0 top-full z-40 flex flex-col gap-1 rounded-b-[32px] border-2 border-t-0 border-[#C1442D] bg-[#FBF7F2] p-5 font-nunito text-lg font-extrabold text-[#1F1A17] md:hidden"
+          >
+            {NAV_LINKS.map((link) => (
               <Link
+                key={link.href}
                 href={link.href}
-                className="transition-colors hover:text-[#C1442D]"
+                onClick={() => setIsOpen(false)}
+                className="rounded-2xl px-3 py-3 transition-colors hover:bg-[#FBF7F2] hover:text-[#C1442D]"
               >
                 {link.label}
               </Link>
-            </li>
-          ))}
-        </ul>
-
-        <div className="hidden md:block">
-          <Button href="/order" size="sm" className="shrink-0">
-            Order Now
-          </Button>
-        </div>
-
-        {/* Mobile: cart icon (once something's in it) + hamburger */}
-        <div className="flex items-center gap-1 md:hidden">
-          {totalBoxes > 0 && (
-            <button
-              type="button"
-              onClick={() => setCartOpen(true)}
-              aria-label={`View your order — ${totalBoxes} box${totalBoxes === 1 ? "" : "es"}`}
-              className="relative flex h-9 w-9 items-center justify-center rounded-full text-[#C1442D]"
-            >
-              <ShoppingBag size={22} />
-              <span className="absolute -right-0.5 -top-0.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-[#C1442D] px-1 font-nunito text-[10px] font-extrabold text-[#FBF7F2]">
-                {totalBoxes}
-              </span>
-            </button>
-          )}
-
-          <button
-            type="button"
-            onClick={() => setIsOpen((prev) => !prev)}
-            aria-expanded={isOpen}
-            aria-controls="mobile-nav"
-            aria-label={isOpen ? "Close menu" : "Open menu"}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-[#C1442D]"
-          >
-            {isOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
-        </div>
-      </nav>
-
-      {/* Mobile nav panel */}
-      {isOpen && (
-        <div
-          id="mobile-nav"
-          className="mx-auto mt-2 flex w-full max-w-[1240px] flex-col gap-1 rounded-[32px] border-2 border-[#C1442D] bg-[#FBF7F2] p-5 font-nunito text-lg font-extrabold text-[#1F1A17] md:hidden"
-        >
-          {NAV_LINKS.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
+            ))}
+            <Button
+              href="/order"
               onClick={() => setIsOpen(false)}
-              className="rounded-2xl px-3 py-3 transition-colors hover:bg-[#FBF7F2] hover:text-[#C1442D]"
+              className="mt-2 w-full"
             >
-              {link.label}
-            </Link>
-          ))}
-          <Button
-            href="/order"
-            onClick={() => setIsOpen(false)}
-            className="mt-2 w-full"
-          >
-            Order Now
-          </Button>
-        </div>
-      )}
+              Order Now
+            </Button>
+          </div>
+        )}
+      </div>
 
       {/* Mobile cart pop-up — lets the user check their order without
           scrolling to the bottom of the order page */}

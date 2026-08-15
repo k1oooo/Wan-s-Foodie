@@ -20,8 +20,14 @@ export default function PaymentPageClient() {
   const [whatsAppHref, setWhatsAppHref] = useState<string | null>(null);
 
   function handleOrderSent(order: ConfirmedOrder, href: string) {
+    // The order snapshot (order.items) already captured the cart's contents
+    // before this fires, so it's safe to clear the live cart here. Doing it
+    // immediately — rather than waiting for "Start New Order" — is what
+    // makes the mobile navbar's cart icon disappear right after sending,
+    // since that icon is only shown while totalBoxes > 0.
     setConfirmedOrder(order);
     setWhatsAppHref(href);
+    clearCart();
   }
 
   function handleRetryWhatsApp() {
