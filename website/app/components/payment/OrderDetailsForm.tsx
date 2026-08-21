@@ -2,10 +2,10 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, MessageCircle } from "lucide-react";
+import { AlertCircle, MapPin, MessageCircle } from "lucide-react";
 import Button from "@/app/ui/Button";
 import { useCart } from "@/lib/cart-context";
-import { WHATSAPP_NUMBER } from "@/lib/site-config";
+import { PICKUP_ADDRESS, WHATSAPP_NUMBER } from "@/lib/site-config";
 import {
   buildOrderMessage,
   formatRM,
@@ -261,6 +261,36 @@ export default function OrderDetailsForm({
             </button>
           </div>
         </fieldset>
+
+        {deliveryMethod === "pickup" && (
+          <div className="rounded-xl border-2 border-dashed border-[#1F1A17]/15 bg-[#FBF7F2] px-3.5 py-3">
+            <div className="flex items-start gap-2">
+              <MapPin
+                size={18}
+                className="mt-0.5 shrink-0 text-[#C1442D]"
+                aria-hidden="true"
+              />
+              <div className="min-w-0">
+                <p className="font-nunito text-xs font-extrabold uppercase tracking-[0.1em] text-[#7A6F68]">
+                  Pickup Address
+                </p>
+                <p className="mt-0.5 text-sm text-[#1F1A17]">
+                  {PICKUP_ADDRESS}
+                </p>
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                    PICKUP_ADDRESS,
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 inline-block text-xs font-extrabold text-[#C1442D] underline"
+                >
+                  Get Directions
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
 
         {deliveryMethod === "delivery" && (
           <div>

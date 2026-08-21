@@ -9,6 +9,9 @@ export function buildWhatsAppLink(message: string = WHATSAPP_DEFAULT_MESSAGE) {
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
 }
 
+export const PICKUP_ADDRESS =
+  "59, Jalan 7A/6, Bandar Tasik Puteri, Rawang 48020, Selangor";
+
 export const SITE_NAME = "Wan's Foodies";
 export const SITE_DESCRIPTION =
   "Hand-folded frozen curry puffs made fresh in small batches. Order Wan's Foodies curry puffs and get them delivered ready to fry.";

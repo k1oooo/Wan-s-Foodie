@@ -1,4 +1,5 @@
 import type { CartLine, CartState } from "@/lib/cart-context";
+import { PICKUP_ADDRESS } from "@/lib/site-config";
 
 export type DeliveryMethod = "pickup" | "delivery";
 
@@ -72,6 +73,9 @@ export function buildOrderMessage({
   lines.push(
     `*Fulfilment:* ${deliveryMethod === "pickup" ? "Self pickup" : "Delivery"}`,
   );
+  if (deliveryMethod === "pickup") {
+    lines.push(`*Pickup address:* ${PICKUP_ADDRESS}`);
+  }
   if (deliveryMethod === "delivery" && address.trim()) {
     lines.push(`*Delivery address:* ${address.trim()}`);
   }
