@@ -7,7 +7,15 @@ import CartItemsCard from "./CartItemsCard";
 import OrderDetailsForm from "./OrderDetailsForm";
 import OrderInvoice, { type ConfirmedOrder } from "./OrderInvoice";
 
-export default function PaymentPageClient() {
+interface PaymentPageClientProps {
+  whatsappNumber: string;
+  pickupAddress: string;
+}
+
+export default function PaymentPageClient({
+  whatsappNumber,
+  pickupAddress,
+}: PaymentPageClientProps) {
   const router = useRouter();
   const { clearCart } = useCart();
 
@@ -55,6 +63,7 @@ export default function PaymentPageClient() {
         <div className="mx-auto mt-5 w-full max-w-md lg:overflow-y-auto">
           <OrderInvoice
             order={confirmedOrder}
+            pickupAddress={pickupAddress}
             onRetryWhatsApp={handleRetryWhatsApp}
             onStartNewOrder={handleStartNewOrder}
           />
@@ -69,7 +78,11 @@ export default function PaymentPageClient() {
             <CartItemsCard />
           </div>
           <div className="lg:min-h-0 lg:overflow-y-auto lg:pr-1">
-            <OrderDetailsForm onOrderSent={handleOrderSent} />
+            <OrderDetailsForm
+              onOrderSent={handleOrderSent}
+              whatsappNumber={whatsappNumber}
+              pickupAddress={pickupAddress}
+            />
           </div>
         </div>
       )}

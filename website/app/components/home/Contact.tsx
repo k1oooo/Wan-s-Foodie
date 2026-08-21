@@ -1,8 +1,14 @@
 import Link from "next/link";
 import { ArrowUpRight, MessageCircle } from "lucide-react";
-import { buildWhatsAppLink } from "@/lib/site-config";
+import { buildWhatsAppLink, WHATSAPP_DEFAULT_MESSAGE } from "@/lib/site-config";
 
-export default function Contact() {
+interface ContactProps {
+  /** From live site settings (Admin > Settings), falls back to the
+   * default number if settings couldn't be loaded. */
+  whatsappNumber?: string;
+}
+
+export default function Contact({ whatsappNumber }: ContactProps) {
   return (
     <section
       id="contact"
@@ -37,7 +43,7 @@ export default function Contact() {
             </p>
 
             <Link
-              href={buildWhatsAppLink()}
+              href={buildWhatsAppLink(WHATSAPP_DEFAULT_MESSAGE, whatsappNumber)}
               target="_blank"
               rel="noopener noreferrer"
               className="mt-8 inline-flex items-center gap-2 rounded-full bg-[#FBF7F2] px-7 py-4 font-nunito text-base font-extrabold text-[#C1442D] shadow-lg transition-transform duration-200 hover:-translate-y-0.5"

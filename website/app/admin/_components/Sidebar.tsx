@@ -8,6 +8,7 @@ import {
   ClipboardList,
   UtensilsCrossed,
   UserCog,
+  Settings,
   X,
   CookingPot,
   FileDown,
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/orders", label: "Orders", icon: ClipboardList },
   { href: "/admin/menu", label: "Menu", icon: UtensilsCrossed },
+  { href: "/admin/settings", label: "Settings", icon: Settings },
   { href: "/admin/users", label: "Users", icon: UserCog },
 ];
 

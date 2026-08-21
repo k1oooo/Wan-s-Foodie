@@ -4,7 +4,6 @@ import { CheckCircle2, RotateCcw, Store, Truck } from "lucide-react";
 import Button from "@/app/ui/Button";
 import type { CartLine } from "@/lib/cart-context";
 import { formatRM, type DeliveryMethod } from "@/lib/order-utils";
-import { PICKUP_ADDRESS } from "@/lib/site-config";
 
 export interface ConfirmedOrder {
   orderNumber: string;
@@ -19,12 +18,15 @@ export interface ConfirmedOrder {
 
 interface OrderInvoiceProps {
   order: ConfirmedOrder;
+  /** From live site settings (Admin > Settings). */
+  pickupAddress: string;
   onRetryWhatsApp: () => void;
   onStartNewOrder: () => void;
 }
 
 export default function OrderInvoice({
   order,
+  pickupAddress,
   onRetryWhatsApp,
   onStartNewOrder,
 }: OrderInvoiceProps) {
@@ -111,7 +113,7 @@ export default function OrderInvoice({
                 <span>
                   Self pickup
                   <span className="block font-normal text-[#7A6F68]">
-                    {PICKUP_ADDRESS}
+                    {pickupAddress}
                   </span>
                 </span>
                 <Store size={16} className="mt-0.5 shrink-0 text-[#C1442D]" />

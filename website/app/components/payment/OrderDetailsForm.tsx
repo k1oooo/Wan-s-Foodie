@@ -5,7 +5,6 @@ import Link from "next/link";
 import { AlertCircle, MapPin, MessageCircle } from "lucide-react";
 import Button from "@/app/ui/Button";
 import { useCart } from "@/lib/cart-context";
-import { PICKUP_ADDRESS, WHATSAPP_NUMBER } from "@/lib/site-config";
 import {
   buildOrderMessage,
   formatRM,
@@ -20,10 +19,15 @@ interface OrderDetailsFormProps {
    * — this form doesn't keep its own copy, so there's no way for the page
    * header and the form body to disagree about whether an order was sent. */
   onOrderSent: (order: ConfirmedOrder, whatsAppHref: string) => void;
+  /** From live site settings (Admin > Settings). */
+  whatsappNumber: string;
+  pickupAddress: string;
 }
 
 export default function OrderDetailsForm({
   onOrderSent,
+  whatsappNumber,
+  pickupAddress,
 }: OrderDetailsFormProps) {
   const { cart, totalPrice, totalBoxes } = useCart();
 
@@ -102,7 +106,7 @@ export default function OrderDetailsForm({
         address,
       });
 
-      const whatsAppHref = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+      const whatsAppHref = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
         buildOrderMessage({
           cart,
           deliveryMethod,
@@ -111,6 +115,7 @@ export default function OrderDetailsForm({
           customerPhone,
           notes: "",
           orderNumber,
+          pickupAddress,
         }),
       )}`;
 
@@ -275,11 +280,11 @@ export default function OrderDetailsForm({
                   Pickup Address
                 </p>
                 <p className="mt-0.5 text-sm text-[#1F1A17]">
-                  {PICKUP_ADDRESS}
+                  {pickupAddress}
                 </p>
                 <a
                   href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                    PICKUP_ADDRESS,
+                    pickupAddress,
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"

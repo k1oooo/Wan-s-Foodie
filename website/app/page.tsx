@@ -6,6 +6,7 @@ import About from "@/app/components/home/About";
 import Menu from "@/app/components/home/Menu";
 import Contact from "@/app/components/home/Contact";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site-config";
+import { getSiteSettings } from "@/lib/supabase/settings";
 
 export const metadata: Metadata = {
   title: `${SITE_NAME} | Homemade Frozen Curry Puffs`,
@@ -35,7 +36,9 @@ export const metadata: Metadata = {
   },
 };
 
-export default function HomePage() {
+export default async function HomePage() {
+  const settings = await getSiteSettings();
+
   return (
     <>
       <Navbar />
@@ -47,7 +50,7 @@ export default function HomePage() {
         <Hero />
         <About />
         <Menu />
-        <Contact />
+        <Contact whatsappNumber={settings.contact_phone} />
       </main>
 
       <Footer />

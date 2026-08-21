@@ -59,6 +59,18 @@ export interface RegularCustomer {
   last_order_at: string;
 }
 
+// Mirrors the `site_settings` Supabase table (a single row, id always 1)
+export interface SiteSettings {
+  id: number;
+  business_email: string;
+  contact_phone: string;
+  pickup_address: string;
+  preorder_minimum_boxes: number;
+  low_stock_threshold: number;
+  monthly_order_limit_boxes: number;
+  updated_at: string;
+}
+
 export interface Order {
   id: string;
   order_number: string;

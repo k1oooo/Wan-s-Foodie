@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import OrderFlowNavbar from "@/app/components/layout/OrderFlowNavbar";
 import PaymentPageClient from "@/app/components/payment/PaymentPageClient.";
 import { SITE_NAME, SITE_URL } from "@/lib/site-config";
+import { getSiteSettings } from "@/lib/supabase/settings";
 
 const PAGE_TITLE = `Order Information | ${SITE_NAME}`;
 const PAGE_DESCRIPTION =
@@ -18,7 +19,9 @@ export const metadata: Metadata = {
   },
 };
 
-export default function PaymentPage() {
+export default async function PaymentPage() {
+  const settings = await getSiteSettings();
+
   return (
     // No footer here on purpose — on large screens this page is height-locked
     // to the viewport (see PaymentPageClient) so the Send Order button never
@@ -26,7 +29,10 @@ export default function PaymentPage() {
     <div className="flex flex-col bg-[#FBF7F2] lg:h-screen lg:overflow-hidden">
       <OrderFlowNavbar />
       <main className="flex-1 lg:min-h-0">
-        <PaymentPageClient />
+        <PaymentPageClient
+          whatsappNumber={settings.contact_phone}
+          pickupAddress={settings.pickup_address}
+        />
       </main>
     </div>
   );

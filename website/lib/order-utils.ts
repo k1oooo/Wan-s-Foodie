@@ -1,5 +1,4 @@
 import type { CartLine, CartState } from "@/lib/cart-context";
-import { PICKUP_ADDRESS } from "@/lib/site-config";
 
 export type DeliveryMethod = "pickup" | "delivery";
 
@@ -32,6 +31,9 @@ export interface CheckoutDetails {
   customerPhone: string;
   notes: string;
   orderNumber?: string;
+  /** Pulled from live site settings so it stays in sync with what Admin
+   * has configured, rather than a hardcoded constant. */
+  pickupAddress: string;
 }
 
 export function buildOrderMessage({
@@ -42,6 +44,7 @@ export function buildOrderMessage({
   customerPhone,
   notes,
   orderNumber,
+  pickupAddress,
 }: CheckoutDetails): string {
   const lines: string[] = [];
 
@@ -74,7 +77,7 @@ export function buildOrderMessage({
     `*Fulfilment:* ${deliveryMethod === "pickup" ? "Self pickup" : "Delivery"}`,
   );
   if (deliveryMethod === "pickup") {
-    lines.push(`*Pickup address:* ${PICKUP_ADDRESS}`);
+    lines.push(`*Pickup address:* ${pickupAddress}`);
   }
   if (deliveryMethod === "delivery" && address.trim()) {
     lines.push(`*Delivery address:* ${address.trim()}`);
