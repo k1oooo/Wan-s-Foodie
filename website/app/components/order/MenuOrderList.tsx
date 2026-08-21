@@ -3,17 +3,40 @@
 import { ChefHat, Minus, Plus } from "lucide-react";
 import { formatRM } from "@/lib/order-utils";
 import { useCart } from "@/lib/cart-context";
+import { getStockState } from "@/lib/stock";
+import StockBadge from "./StockBadge";
 import type { MenuCategoryGroup, PublicMenuItem } from "@/lib/types";
 
 interface MenuOrderListProps {
   menu: MenuCategoryGroup[];
+  /** From live site settings (Admin > Settings). */
+  lowStockThreshold: number;
+  preorderMinimumBoxes: number;
 }
 
-export default function MenuOrderList({ menu }: MenuOrderListProps) {
+export default function MenuOrderList({
+  menu,
+  lowStockThreshold,
+  preorderMinimumBoxes,
+}: MenuOrderListProps) {
   const { cart, setQuantity } = useCart();
 
   function addOne(item: PublicMenuItem, currentQty: number) {
-    const nextQty = Math.min(currentQty + 1, item.stock_boxes);
+    const state = getStockState(item, lowStockThreshold);
+    let nextQty: number;
+
+    if (state === "unavailable") {
+      return;
+    } else if (state === "preorder") {
+      // Out of stock but still enabled — jump straight to the pre-order
+      // minimum on the first tap instead of incrementing by 1, since
+      // anything below the minimum isn't a valid pre-order quantity.
+      nextQty =
+        currentQty === 0 ? preorderMinimumBoxes : currentQty + 1;
+    } else {
+      nextQty = Math.min(currentQty + 1, item.stock_boxes);
+    }
+
     setQuantity(
       {
         id: item.id,
@@ -26,6 +49,15 @@ export default function MenuOrderList({ menu }: MenuOrderListProps) {
   }
 
   function removeOne(item: PublicMenuItem, currentQty: number) {
+    const state = getStockState(item, lowStockThreshold);
+    // At or below the pre-order minimum, the only valid step down is to
+    // remove the item entirely — there's no such thing as "2 boxes" of a
+    // 3-box-minimum pre-order.
+    const nextQty =
+      state === "preorder" && currentQty <= preorderMinimumBoxes
+        ? 0
+        : Math.max(0, currentQty - 1);
+
     setQuantity(
       {
         id: item.id,
@@ -33,7 +65,7 @@ export default function MenuOrderList({ menu }: MenuOrderListProps) {
         category: item.category,
         price: item.price_per_box,
       },
-      Math.max(0, currentQty - 1),
+      nextQty,
     );
   }
 
@@ -47,14 +79,16 @@ export default function MenuOrderList({ menu }: MenuOrderListProps) {
           <ul className="mt-4 divide-y divide-[#1F1A17]/10 rounded-3xl border border-[#1F1A17]/10 bg-white/60">
             {group.items.map((item) => {
               const qty = cart[item.id]?.quantity ?? 0;
-              const soldOut = !item.is_available || item.stock_boxes <= 0;
-              const atStockLimit = qty >= item.stock_boxes;
+              const state = getStockState(item, lowStockThreshold);
+              const unavailable = state === "unavailable";
+              const atStockLimit =
+                state !== "preorder" && qty >= item.stock_boxes;
 
               return (
                 <li
                   key={item.id}
                   className={`flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between ${
-                    soldOut ? "opacity-50" : ""
+                    unavailable ? "opacity-50" : ""
                   }`}
                 >
                   <div>
@@ -68,10 +102,17 @@ export default function MenuOrderList({ menu }: MenuOrderListProps) {
                         />
                       )}
                     </p>
-                    <p className="text-sm text-[#7A6F68]">
-                      {soldOut
-                        ? "Sold out"
-                        : `${formatRM(item.price_per_box)} / box of 10 pcs`}
+                    <p className="mt-0.5 flex flex-wrap items-center gap-2 text-sm text-[#7A6F68]">
+                      <span>
+                        {unavailable
+                          ? "Sold out"
+                          : `${formatRM(item.price_per_box)} / box of 10 pcs`}
+                      </span>
+                      <StockBadge
+                        state={state}
+                        stockBoxes={item.stock_boxes}
+                        preorderMinimumBoxes={preorderMinimumBoxes}
+                      />
                     </p>
                   </div>
 
@@ -94,7 +135,7 @@ export default function MenuOrderList({ menu }: MenuOrderListProps) {
                     <button
                       type="button"
                       onClick={() => addOne(item, qty)}
-                      disabled={soldOut || atStockLimit}
+                      disabled={unavailable || atStockLimit}
                       aria-label={`Increase ${item.name} quantity`}
                       className="flex h-9 w-9 items-center justify-center rounded-full bg-[#C1442D] text-[#FBF7F2] transition-opacity hover:opacity-90 disabled:opacity-30"
                     >
@@ -110,3 +151,4 @@ export default function MenuOrderList({ menu }: MenuOrderListProps) {
     </div>
   );
 }
+

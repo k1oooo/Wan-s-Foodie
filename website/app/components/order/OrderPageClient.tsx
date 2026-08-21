@@ -6,9 +6,16 @@ import type { MenuCategoryGroup } from "@/lib/types";
 
 interface OrderPageClientProps {
   menu: MenuCategoryGroup[];
+  /** From live site settings (Admin > Settings). */
+  lowStockThreshold: number;
+  preorderMinimumBoxes: number;
 }
 
-export default function OrderPageClient({ menu }: OrderPageClientProps) {
+export default function OrderPageClient({
+  menu,
+  lowStockThreshold,
+  preorderMinimumBoxes,
+}: OrderPageClientProps) {
   return (
     <div className="mx-auto grid w-full max-w-[1240px] grid-cols-1 gap-10 px-6 py-14 sm:px-10 lg:grid-cols-[1fr_360px] lg:gap-14 lg:py-20">
       <div>
@@ -26,7 +33,11 @@ export default function OrderPageClient({ menu }: OrderPageClientProps) {
               out to us on WhatsApp.
             </p>
           ) : (
-            <MenuOrderList menu={menu} />
+            <MenuOrderList
+              menu={menu}
+              lowStockThreshold={lowStockThreshold}
+              preorderMinimumBoxes={preorderMinimumBoxes}
+            />
           )}
         </div>
       </div>

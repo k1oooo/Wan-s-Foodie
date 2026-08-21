@@ -1,9 +1,15 @@
 import { ChefHat } from "lucide-react";
 import { getPublicMenu } from "@/lib/menu";
 import { formatRM } from "@/lib/order-utils";
+import { getSiteSettings } from "@/lib/supabase/settings";
+import { getStockState } from "@/lib/stock";
+import StockBadge from "@/app/components/order/StockBadge";
 
 export default async function Menu() {
-  const menu = await getPublicMenu();
+  const [menu, settings] = await Promise.all([
+    getPublicMenu(),
+    getSiteSettings(),
+  ]);
 
   return (
     <section
@@ -51,46 +57,71 @@ export default async function Menu() {
                 </div>
 
                 <ul className="flex flex-col gap-3 px-6 pb-6 pt-5 sm:px-7">
-                  {group.items.map((item) => (
-                    <li key={item.id} className="flex items-baseline gap-2.5">
-                      <span
-                        className={`flex items-baseline gap-1.5 font-nunito text-base font-extrabold ${
-                          item.is_available
-                            ? "text-[#1F1A17]"
-                            : "text-[#7A6F68] line-through decoration-2"
-                        }`}
-                      >
-                        {item.name}
-                        {item.is_chef_recommended && (
-                          <span className="inline-flex shrink-0 translate-y-[-1px] items-center gap-1 rounded-full bg-[#E3A73B]/15 px-1.5 py-0.5 font-nunito text-[10px] font-extrabold uppercase tracking-[0.04em] text-[#C1442D]">
-                            <ChefHat size={11} aria-hidden="true" />
-                            Chef&apos;s Pick
+                  {group.items.map((item) => {
+                    const state = getStockState(
+                      item,
+                      settings.low_stock_threshold,
+                    );
+                    const showBadge =
+                      state === "preorder" || state === "low-stock";
+
+                    return (
+                      <li key={item.id} className="flex flex-col gap-1">
+                        <div className="flex items-baseline gap-2.5">
+                          <span
+                            className={`flex items-baseline gap-1.5 font-nunito text-base font-extrabold ${
+                              item.is_available
+                                ? "text-[#1F1A17]"
+                                : "text-[#7A6F68] line-through decoration-2"
+                            }`}
+                          >
+                            {item.name}
+                            {item.is_chef_recommended && (
+                              <span className="inline-flex shrink-0 translate-y-[-1px] items-center gap-1 rounded-full bg-[#E3A73B]/15 px-1.5 py-0.5 font-nunito text-[10px] font-extrabold uppercase tracking-[0.04em] text-[#C1442D]">
+                                <ChefHat size={11} aria-hidden="true" />
+                                Chef&apos;s Pick
+                              </span>
+                            )}
                           </span>
+
+                          {/* Dotted leader line — the classic printed-menu
+                              device connecting a dish to its price. */}
+                          <span
+                            aria-hidden="true"
+                            className={`mb-1 h-0 flex-1 border-b-2 border-dotted ${
+                              item.is_available
+                                ? "border-[#1F1A17]/20"
+                                : "border-[#1F1A17]/10"
+                            }`}
+                          />
+
+                          {item.is_available ? (
+                            <span className="shrink-0 font-nunito text-base font-extrabold text-[#C1442D]">
+                              {formatRM(item.price_per_box)}
+                            </span>
+                          ) : (
+                            <StockBadge
+                              state={state}
+                              stockBoxes={item.stock_boxes}
+                              preorderMinimumBoxes={
+                                settings.preorder_minimum_boxes
+                              }
+                            />
+                          )}
+                        </div>
+
+                        {showBadge && (
+                          <StockBadge
+                            state={state}
+                            stockBoxes={item.stock_boxes}
+                            preorderMinimumBoxes={
+                              settings.preorder_minimum_boxes
+                            }
+                          />
                         )}
-                      </span>
-
-                      {/* Dotted leader line — the classic printed-menu
-                          device connecting a dish to its price. */}
-                      <span
-                        aria-hidden="true"
-                        className={`mb-1 h-0 flex-1 border-b-2 border-dotted ${
-                          item.is_available
-                            ? "border-[#1F1A17]/20"
-                            : "border-[#1F1A17]/10"
-                        }`}
-                      />
-
-                      {item.is_available ? (
-                        <span className="shrink-0 font-nunito text-base font-extrabold text-[#C1442D]">
-                          {formatRM(item.price_per_box)}
-                        </span>
-                      ) : (
-                        <span className="shrink-0 -rotate-3 rounded border border-[#7A6F68]/40 px-1.5 py-0.5 font-nunito text-[10px] font-extrabold uppercase tracking-[0.04em] text-[#7A6F68]">
-                          Sold Out
-                        </span>
-                      )}
-                    </li>
-                  ))}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             ))}

@@ -4,6 +4,7 @@ import Footer from "@/app/components/layout/Footer";
 import OrderPageClient from "@/app/components/order/OrderPageClient";
 import { SITE_NAME, SITE_URL } from "@/lib/site-config";
 import { getPublicMenu } from "@/lib/menu";
+import { getSiteSettings } from "@/lib/supabase/settings";
 
 const PAGE_TITLE = `Order Now | ${SITE_NAME}`;
 const PAGE_DESCRIPTION =
@@ -25,13 +26,20 @@ export const metadata: Metadata = {
 };
 
 export default async function OrderPage() {
-  const menu = await getPublicMenu();
+  const [menu, settings] = await Promise.all([
+    getPublicMenu(),
+    getSiteSettings(),
+  ]);
 
   return (
     <>
       <OrderFlowNavbar />
       <main className="min-h-screen bg-[#FBF7F2]">
-        <OrderPageClient menu={menu} />
+        <OrderPageClient
+          menu={menu}
+          lowStockThreshold={settings.low_stock_threshold}
+          preorderMinimumBoxes={settings.preorder_minimum_boxes}
+        />
       </main>
       <Footer />
     </>
