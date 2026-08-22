@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart-context";
 import CartItemsCard from "./CartItemsCard";
 import OrderDetailsForm from "./OrderDetailsForm";
-import OrderInvoice, { type ConfirmedOrder } from "./OrderInvoice";
+import OrderInvoice from "./OrderInvoice";
+import type { ConfirmedOrder } from "@/lib/order-utils";
 
 interface PaymentPageClientProps {
   whatsappNumber: string;

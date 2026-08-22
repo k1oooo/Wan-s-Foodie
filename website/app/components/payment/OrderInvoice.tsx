@@ -1,20 +1,12 @@
 "use client";
 
-import { CheckCircle2, RotateCcw, Store, Truck } from "lucide-react";
+import { CheckCircle2, FileDown, RotateCcw, Store, Truck } from "lucide-react";
 import Button from "@/app/ui/Button";
-import type { CartLine } from "@/lib/cart-context";
-import { formatRM, type DeliveryMethod } from "@/lib/order-utils";
-
-export interface ConfirmedOrder {
-  orderNumber: string;
-  items: CartLine[];
-  total: number;
-  customerName: string;
-  customerPhone: string;
-  deliveryMethod: DeliveryMethod;
-  address: string;
-  sentAt: string;
-}
+import {
+  formatRM,
+  type ConfirmedOrder,
+} from "@/lib/order-utils";
+import { generateReceiptPdf } from "@/lib/receipt-pdf";
 
 interface OrderInvoiceProps {
   order: ConfirmedOrder;
@@ -131,6 +123,13 @@ export default function OrderInvoice({
       <div className="mt-5 flex flex-col gap-2.5 sm:flex-row sm:justify-center">
         <Button variant="outline" size="sm" onClick={onRetryWhatsApp}>
           <RotateCcw size={16} /> Didn&apos;t open? Try again
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => generateReceiptPdf(order, pickupAddress)}
+        >
+          <FileDown size={16} /> Download Receipt
         </Button>
         <Button size="sm" onClick={onStartNewOrder}>
           Start a New Order

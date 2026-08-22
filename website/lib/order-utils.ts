@@ -2,6 +2,20 @@ import type { CartLine, CartState } from "@/lib/cart-context";
 
 export type DeliveryMethod = "pickup" | "delivery";
 
+// Lives here (not in OrderInvoice.tsx, where it conceptually "belongs")
+// specifically so lib/receipt-pdf.ts can import it without creating a
+// circular dependency between a UI component and a lib module.
+export interface ConfirmedOrder {
+  orderNumber: string;
+  items: CartLine[];
+  total: number;
+  customerName: string;
+  customerPhone: string;
+  deliveryMethod: DeliveryMethod;
+  address: string;
+  sentAt: string;
+}
+
 export function formatRM(amount: number) {
   return `RM${amount.toFixed(2).replace(/\.00$/, "")}`;
 }

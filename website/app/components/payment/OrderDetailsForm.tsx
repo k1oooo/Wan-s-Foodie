@@ -11,7 +11,7 @@ import {
   type DeliveryMethod,
 } from "@/lib/order-utils";
 import { submitOrder } from "@/lib/supabase/orders";
-import type { ConfirmedOrder } from "./OrderInvoice";
+import type { ConfirmedOrder } from "@/lib/order-utils";
 
 interface OrderDetailsFormProps {
   /** Fired once the order is saved and the WhatsApp link is ready. The
