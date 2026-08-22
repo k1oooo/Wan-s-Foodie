@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, MapPin, MessageCircle } from "lucide-react";
+import { AlertCircle, Loader2, MapPin, MessageCircle } from "lucide-react";
 import Button from "@/app/ui/Button";
 import { useCart } from "@/lib/cart-context";
 import {
@@ -36,6 +36,54 @@ export default function OrderDetailsForm({
   const [deliveryMethod, setDeliveryMethod] =
     useState<DeliveryMethod>("pickup");
   const [address, setAddress] = useState("");
+
+  type DeliveryEstimateState =
+    | { status: "idle" }
+    | { status: "loading" }
+    | { status: "unavailable" }
+    | {
+        status: "ready";
+        distanceKm: number;
+        fee: number | null;
+        inRange: boolean;
+      };
+
+  const [deliveryEstimate, setDeliveryEstimate] =
+    useState<DeliveryEstimateState>({ status: "idle" });
+  // Guards against an earlier, slower request overwriting a later one's
+  // result if the customer edits the address again before the first
+  // lookup finishes.
+  const estimateRequestId = useRef(0);
+
+  async function fetchDeliveryEstimate(addr: string) {
+    const requestId = ++estimateRequestId.current;
+    setDeliveryEstimate({ status: "loading" });
+
+    try {
+      const res = await fetch("/api/delivery-estimate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: addr }),
+      });
+      const data = await res.json();
+
+      if (requestId !== estimateRequestId.current) return; // superseded
+
+      if (data.ok) {
+        setDeliveryEstimate({
+          status: "ready",
+          distanceKm: data.distanceKm,
+          fee: data.fee,
+          inRange: data.inRange,
+        });
+      } else {
+        setDeliveryEstimate({ status: "unavailable" });
+      }
+    } catch {
+      if (requestId !== estimateRequestId.current) return;
+      setDeliveryEstimate({ status: "unavailable" });
+    }
+  }
 
   const [touched, setTouched] = useState({
     name: false,
@@ -116,6 +164,12 @@ export default function OrderDetailsForm({
           notes: "",
           orderNumber,
           pickupAddress,
+          estimatedDeliveryFee:
+            deliveryEstimate.status === "ready" ? deliveryEstimate.fee : null,
+          estimatedDistanceKm:
+            deliveryEstimate.status === "ready"
+              ? deliveryEstimate.distanceKm
+              : null,
         }),
       )}`;
 
@@ -279,9 +333,7 @@ export default function OrderDetailsForm({
                 <p className="font-nunito text-xs font-extrabold uppercase tracking-[0.1em] text-[#7A6F68]">
                   Pickup Address
                 </p>
-                <p className="mt-0.5 text-sm text-[#1F1A17]">
-                  {pickupAddress}
-                </p>
+                <p className="mt-0.5 text-sm text-[#1F1A17]">{pickupAddress}</p>
                 <a
                   href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
                     pickupAddress,
@@ -310,8 +362,20 @@ export default function OrderDetailsForm({
               id="delivery-address"
               required
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              onBlur={() => setTouched((prev) => ({ ...prev, address: true }))}
+              onChange={(e) => {
+                setAddress(e.target.value);
+                setDeliveryEstimate({ status: "idle" });
+              }}
+              onBlur={() => {
+                setTouched((prev) => ({ ...prev, address: true }));
+                const trimmed = address.trim();
+                // Skip firing on obviously-incomplete text — a couple
+                // words isn't enough for a useful geocode lookup anyway,
+                // and it avoids a wasted request on every stray blur.
+                if (trimmed.length >= 8) {
+                  fetchDeliveryEstimate(trimmed);
+                }
+              }}
               rows={2}
               placeholder="Street, unit, city, postcode"
               aria-invalid={!!showAddressError}
@@ -332,6 +396,27 @@ export default function OrderDetailsForm({
                 {addressError}
               </p>
             )}
+            {deliveryEstimate.status === "loading" && (
+              <p className="mt-1.5 flex items-center gap-1.5 text-xs text-[#7A6F68]">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Estimating delivery fee...
+              </p>
+            )}
+            {deliveryEstimate.status === "ready" &&
+              deliveryEstimate.inRange && (
+                <p className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-[#C1442D]">
+                  <MapPin className="h-3 w-3 shrink-0" />
+                  Estimated delivery fee: {formatRM(deliveryEstimate.fee!)} (~
+                  {deliveryEstimate.distanceKm}km)
+                </p>
+              )}
+            {deliveryEstimate.status === "ready" &&
+              !deliveryEstimate.inRange && (
+                <p className="mt-1.5 text-xs text-[#7A6F68]">
+                  This address looks outside our usual delivery range —
+                  we&apos;ll confirm availability and fee via WhatsApp.
+                </p>
+              )}
             <p className="mt-1 text-xs text-[#7A6F68]">
               Delivery fee confirmed via WhatsApp based on your location.
             </p>

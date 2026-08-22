@@ -34,6 +34,11 @@ export interface CheckoutDetails {
   /** Pulled from live site settings so it stays in sync with what Admin
    * has configured, rather than a hardcoded constant. */
   pickupAddress: string;
+  /** Distance-based ESTIMATE only, shown to Wan as a heads-up — the real
+   * delivery fee is still confirmed manually over WhatsApp. Omitted from
+   * the message entirely if the estimate couldn't be calculated. */
+  estimatedDeliveryFee?: number | null;
+  estimatedDistanceKm?: number | null;
 }
 
 export function buildOrderMessage({
@@ -45,6 +50,8 @@ export function buildOrderMessage({
   notes,
   orderNumber,
   pickupAddress,
+  estimatedDeliveryFee,
+  estimatedDistanceKm,
 }: CheckoutDetails): string {
   const lines: string[] = [];
 
@@ -81,6 +88,15 @@ export function buildOrderMessage({
   }
   if (deliveryMethod === "delivery" && address.trim()) {
     lines.push(`*Delivery address:* ${address.trim()}`);
+  }
+  if (
+    deliveryMethod === "delivery" &&
+    estimatedDeliveryFee != null &&
+    estimatedDistanceKm != null
+  ) {
+    lines.push(
+      `*Estimated delivery fee:* ${formatRM(estimatedDeliveryFee)} (~${estimatedDistanceKm}km, to be confirmed)`,
+    );
   }
   lines.push("");
   lines.push(`*Name:* ${customerName.trim()}`);
