@@ -1,18 +1,21 @@
-// Free geocoding via OpenStreetMap's Nominatim, used only to produce a
-// rough delivery-fee ESTIMATE — never anything customer-facing that needs
-// to be precise (the real fee is always confirmed manually via WhatsApp).
-// This keeps the estimate free instead of requiring a billed Google Maps
-// API key. Trade-off: Nominatim can be less accurate for free-text
-// Malaysian addresses and is rate-limited to ~1 request/second — acceptable
-// for a small home-based business, but worth revisiting if order volume
-// grows enough to strain it.
+// Geocoding via LocationIQ, used only to produce a rough delivery-fee
+// ESTIMATE — never anything customer-facing that needs to be precise (the
+// real fee is always confirmed manually via WhatsApp).
 //
-// Usage policy: https://operations.osmfoundation.org/policies/nominatim/
+// This was originally built against the public OpenStreetMap Nominatim
+// endpoint (fully free, no signup), but that instance actively blocks or
+// silently stalls requests coming from datacenter/cloud IPs — exactly what
+// Vercel's serverless functions use — which made every lookup fail in
+// production. LocationIQ is Nominatim-compatible (same request/response
+// shape, same open data) but is proper hosted infrastructure meant for
+// production traffic, with a free tier (5,000 requests/day) that comfortably
+// covers a small home business. Swapping providers again later, if ever
+// needed, is a one-file change.
+//
+// Get a free key at https://locationiq.com (no credit card) and set it as
+// LOCATIONIQ_API_KEY in Vercel's environment variables.
 
-const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
-
-// Nominatim's usage policy requires a valid identifying User-Agent.
-const USER_AGENT = "WansFoodiesWebsite/1.0 (+https://wansfoodies.com)";
+const LOCATIONIQ_URL = "https://us1.locationiq.com/v1/search";
 
 export interface Coordinates {
   lat: number;
@@ -21,33 +24,44 @@ export interface Coordinates {
 
 /**
  * Looks up coordinates for a free-text address. Returns null (rather than
- * throwing) on "not found" or any network/parsing failure, since a failed
- * estimate should never block checkout — it just means the delivery-fee
- * estimate is skipped and the existing "confirmed via WhatsApp" note is all
- * the customer sees.
+ * throwing) on "not found", missing API key, or any network/parsing
+ * failure, since a failed estimate should never block checkout — it just
+ * means the delivery-fee estimate is skipped and the existing "confirmed
+ * via WhatsApp" note is all the customer sees.
  */
 export async function geocodeAddress(
   address: string,
   options?: { revalidateSeconds?: number },
 ): Promise<Coordinates | null> {
-  const url = `${NOMINATIM_URL}?format=json&limit=1&countrycodes=my&q=${encodeURIComponent(
+  const apiKey = process.env.LOCATIONIQ_API_KEY;
+  if (!apiKey) {
+    console.error(
+      "LOCATIONIQ_API_KEY is not set — delivery fee estimates are disabled until it's configured.",
+    );
+    return null;
+  }
+
+  const url = `${LOCATIONIQ_URL}?key=${apiKey}&format=json&limit=1&countrycodes=my&q=${encodeURIComponent(
     address,
   )}`;
 
   try {
     const res = await fetch(url, {
-      headers: { "User-Agent": USER_AGENT },
-      // Nominatim can hang or silently stall on requests from datacenter
-      // IPs (which is what Vercel's serverless functions are) without
-      // ever erroring — cap it so a bad lookup fails fast instead of
-      // leaving the customer staring at "Estimating..." indefinitely.
+      // A generous but bounded timeout — LocationIQ is reliable, but this
+      // still protects against the customer getting stuck on
+      // "Estimating..." indefinitely if something goes wrong.
       signal: AbortSignal.timeout(5000),
       next: options?.revalidateSeconds
         ? { revalidate: options.revalidateSeconds }
         : undefined,
     });
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error(
+        `LocationIQ geocode request failed: ${res.status} ${res.statusText}`,
+      );
+      return null;
+    }
 
     const results = (await res.json()) as Array<{ lat: string; lon: string }>;
     if (results.length === 0) return null;
@@ -58,7 +72,7 @@ export async function geocodeAddress(
 
     return { lat, lon };
   } catch (error) {
-    console.error("Nominatim geocode failed:", error);
+    console.error("LocationIQ geocode failed:", error);
     return null;
   }
 }
