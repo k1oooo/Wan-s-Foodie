@@ -37,6 +37,11 @@ export async function geocodeAddress(
   try {
     const res = await fetch(url, {
       headers: { "User-Agent": USER_AGENT },
+      // Nominatim can hang or silently stall on requests from datacenter
+      // IPs (which is what Vercel's serverless functions are) without
+      // ever erroring — cap it so a bad lookup fails fast instead of
+      // leaving the customer staring at "Estimating..." indefinitely.
+      signal: AbortSignal.timeout(5000),
       next: options?.revalidateSeconds
         ? { revalidate: options.revalidateSeconds }
         : undefined,
@@ -52,7 +57,8 @@ export async function geocodeAddress(
     if (Number.isNaN(lat) || Number.isNaN(lon)) return null;
 
     return { lat, lon };
-  } catch {
+  } catch (error) {
+    console.error("Nominatim geocode failed:", error);
     return null;
   }
 }

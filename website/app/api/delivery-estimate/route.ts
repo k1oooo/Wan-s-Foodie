@@ -26,13 +26,13 @@ export async function POST(request: Request) {
     const settings = await getSiteSettings();
 
     // The pickup address rarely changes, so its geocode result is cached
-    // for an hour. That also keeps us comfortably under Nominatim's
-    // 1-request/second usage policy, since only the customer's address
-    // needs a fresh lookup on each call.
-    const origin = await geocodeAddress(settings.pickup_address, {
-      revalidateSeconds: 3600,
-    });
-    const destination = await geocodeAddress(address);
+    // for an hour (via Next's fetch cache) — in practice this means only
+    // the customer's address triggers a live Nominatim call most of the
+    // time. Run both in parallel since they're independent lookups.
+    const [origin, destination] = await Promise.all([
+      geocodeAddress(settings.pickup_address, { revalidateSeconds: 3600 }),
+      geocodeAddress(address),
+    ]);
 
     if (!origin || !destination) {
       return NextResponse.json({ ok: false, reason: "geocode_failed" });

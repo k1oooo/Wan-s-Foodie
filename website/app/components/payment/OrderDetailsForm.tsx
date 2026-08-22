@@ -41,12 +41,7 @@ export default function OrderDetailsForm({
     | { status: "idle" }
     | { status: "loading" }
     | { status: "unavailable" }
-    | {
-        status: "ready";
-        distanceKm: number;
-        fee: number | null;
-        inRange: boolean;
-      };
+    | { status: "ready"; distanceKm: number; fee: number | null; inRange: boolean };
 
   const [deliveryEstimate, setDeliveryEstimate] =
     useState<DeliveryEstimateState>({ status: "idle" });
@@ -64,6 +59,10 @@ export default function OrderDetailsForm({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address: addr }),
+        // Belt-and-suspenders: geocode.ts already times out server-side,
+        // but this guarantees the UI never gets stuck on "Estimating..."
+        // even if the whole route hangs for some other reason.
+        signal: AbortSignal.timeout(10000),
       });
       const data = await res.json();
 
@@ -333,7 +332,9 @@ export default function OrderDetailsForm({
                 <p className="font-nunito text-xs font-extrabold uppercase tracking-[0.1em] text-[#7A6F68]">
                   Pickup Address
                 </p>
-                <p className="mt-0.5 text-sm text-[#1F1A17]">{pickupAddress}</p>
+                <p className="mt-0.5 text-sm text-[#1F1A17]">
+                  {pickupAddress}
+                </p>
                 <a
                   href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
                     pickupAddress,
@@ -406,8 +407,8 @@ export default function OrderDetailsForm({
               deliveryEstimate.inRange && (
                 <p className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-[#C1442D]">
                   <MapPin className="h-3 w-3 shrink-0" />
-                  Estimated delivery fee: {formatRM(deliveryEstimate.fee!)} (~
-                  {deliveryEstimate.distanceKm}km)
+                  Estimated delivery fee: {formatRM(deliveryEstimate.fee!)}{" "}
+                  (~{deliveryEstimate.distanceKm}km)
                 </p>
               )}
             {deliveryEstimate.status === "ready" &&
