@@ -4,12 +4,11 @@ export interface DeliveryFeeTier {
 }
 
 // Distance-based ESTIMATE only — the real delivery fee is always confirmed
-// manually via WhatsApp (see the note on the checkout form). Starting point
-// based on the two example tiers Wan gave (≤3km → RM2, ≤5km → RM3); the
-// rest scale the same way. This is a plain array, not wired to the Admin
-// Settings panel — Wan asked to edit this file herself if the numbers need
-// changing, rather than adding another settings UI for it.
-export const DELIVERY_FEE_TIERS: DeliveryFeeTier[] = [
+// manually via WhatsApp (see the note on the checkout form). The live tier
+// table is stored in site_settings.delivery_fee_tiers and editable from
+// Admin > Settings. DEFAULT_DELIVERY_FEE_TIERS below is only a fallback if
+// that row is ever missing or unreachable — see lib/supabase/settings.ts.
+export const DEFAULT_DELIVERY_FEE_TIERS: DeliveryFeeTier[] = [
   { maxKm: 3, fee: 2 },
   { maxKm: 5, fee: 3 },
   { maxKm: 8, fee: 5 },
@@ -25,8 +24,16 @@ export interface DeliveryFeeEstimate {
   inRange: boolean;
 }
 
-export function estimateDeliveryFee(distanceKm: number): DeliveryFeeEstimate {
-  for (const tier of DELIVERY_FEE_TIERS) {
+export function estimateDeliveryFee(
+  distanceKm: number,
+  tiers: DeliveryFeeTier[] = DEFAULT_DELIVERY_FEE_TIERS,
+): DeliveryFeeEstimate {
+  // Sort defensively rather than trusting storage order — admin could save
+  // tiers out of sequence, and this still needs to pick the smallest
+  // matching tier either way.
+  const sorted = [...tiers].sort((a, b) => a.maxKm - b.maxKm);
+
+  for (const tier of sorted) {
     if (distanceKm <= tier.maxKm) {
       return { fee: tier.fee, inRange: true };
     }

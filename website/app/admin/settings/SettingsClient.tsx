@@ -11,10 +11,14 @@ import {
   CalendarRange,
   Loader2,
   Info,
+  Truck,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import type { SiteSettings } from "../_lib/types";
+import type { DeliveryFeeTier } from "@/lib/delivery/fee-tiers";
 
 type Draft = Omit<SiteSettings, "id" | "updated_at">;
 
@@ -26,6 +30,7 @@ function toDraft(settings: SiteSettings): Draft {
     preorder_minimum_boxes: settings.preorder_minimum_boxes,
     low_stock_threshold: settings.low_stock_threshold,
     monthly_order_limit_boxes: settings.monthly_order_limit_boxes,
+    delivery_fee_tiers: settings.delivery_fee_tiers,
   };
 }
 
@@ -54,11 +59,63 @@ export default function SettingsClient({
   const lowStockInvalid = draft.low_stock_threshold < 0;
   const monthlyLimitInvalid = draft.monthly_order_limit_boxes < 1;
 
+  const tierErrors = useMemo(() => {
+    const errors: string[] = [];
+    if (draft.delivery_fee_tiers.length === 0) {
+      errors.push("Add at least one tier.");
+      return errors;
+    }
+    if (draft.delivery_fee_tiers.some((t) => !(t.maxKm > 0))) {
+      errors.push("Distance must be greater than 0km.");
+    }
+    if (draft.delivery_fee_tiers.some((t) => t.fee < 0)) {
+      errors.push("Fee can't be negative.");
+    }
+    const maxKms = draft.delivery_fee_tiers.map((t) => t.maxKm);
+    if (new Set(maxKms).size !== maxKms.length) {
+      errors.push("Each tier needs a different distance.");
+    }
+    return errors;
+  }, [draft.delivery_fee_tiers]);
+  const tiersInvalid = tierErrors.length > 0;
+
   const hasErrors =
-    !!phoneError || preorderInvalid || lowStockInvalid || monthlyLimitInvalid;
+    !!phoneError ||
+    preorderInvalid ||
+    lowStockInvalid ||
+    monthlyLimitInvalid ||
+    tiersInvalid;
 
   function update<K extends keyof Draft>(key: K, value: Draft[K]) {
     setDraft((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function updateTier(index: number, key: keyof DeliveryFeeTier, value: number) {
+    setDraft((prev) => {
+      const tiers = [...prev.delivery_fee_tiers];
+      tiers[index] = { ...tiers[index], [key]: value };
+      return { ...prev, delivery_fee_tiers: tiers };
+    });
+  }
+
+  function addTier() {
+    setDraft((prev) => {
+      const last = prev.delivery_fee_tiers[prev.delivery_fee_tiers.length - 1];
+      const nextTier: DeliveryFeeTier = last
+        ? { maxKm: last.maxKm + 2, fee: last.fee + 2 }
+        : { maxKm: 3, fee: 2 };
+      return {
+        ...prev,
+        delivery_fee_tiers: [...prev.delivery_fee_tiers, nextTier],
+      };
+    });
+  }
+
+  function removeTier(index: number) {
+    setDraft((prev) => ({
+      ...prev,
+      delivery_fee_tiers: prev.delivery_fee_tiers.filter((_, i) => i !== index),
+    }));
   }
 
   async function handleSave() {
@@ -67,9 +124,16 @@ export default function SettingsClient({
     setSaving(true);
     const supabase = createClient();
 
+    const payload: Draft = {
+      ...draft,
+      delivery_fee_tiers: [...draft.delivery_fee_tiers].sort(
+        (a, b) => a.maxKm - b.maxKm,
+      ),
+    };
+
     const { data, error } = await supabase
       .from("site_settings")
-      .update(draft)
+      .update(payload)
       .eq("id", 1)
       .select()
       .single();
@@ -294,6 +358,95 @@ export default function SettingsClient({
           <span>
             Once the monthly limit is reached, new orders automatically move
             into next month&apos;s queue.
+          </span>
+        </div>
+      </div>
+
+      {/* Delivery Fee Tiers */}
+      <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+        <div className="flex items-center gap-2">
+          <Truck className="h-4.5 w-4.5 text-slate-400" />
+          <h2 className="text-sm font-semibold text-slate-900">
+            Delivery fee tiers
+          </h2>
+        </div>
+        <p className="mt-1 text-xs text-slate-500">
+          Distance-based ESTIMATE shown to customers at checkout — the real
+          fee is still confirmed manually via WhatsApp, this just gives them
+          a heads-up.
+        </p>
+
+        <div className="mt-3.5 space-y-2">
+          {draft.delivery_fee_tiers.map((tier, index) => (
+            <div key={index} className="flex items-center gap-2">
+              <span className="shrink-0 text-xs text-slate-500">Up to</span>
+              <div className="relative w-24">
+                <input
+                  type="number"
+                  min={0.1}
+                  step={0.1}
+                  value={tier.maxKm}
+                  onChange={(e) =>
+                    updateTier(index, "maxKm", Number(e.target.value))
+                  }
+                  aria-label={`Tier ${index + 1} max distance in km`}
+                  className="w-full rounded-lg border border-slate-200 py-2 pl-3 pr-8 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                />
+                <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">
+                  km
+                </span>
+              </div>
+              <span className="shrink-0 text-xs text-slate-500">→ RM</span>
+              <div className="w-24">
+                <input
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  value={tier.fee}
+                  onChange={(e) =>
+                    updateTier(index, "fee", Number(e.target.value))
+                  }
+                  aria-label={`Tier ${index + 1} fee in RM`}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => removeTier(index)}
+                aria-label={`Remove tier ${index + 1}`}
+                className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={addTier}
+          className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-slate-400 hover:bg-slate-50"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Add tier
+        </button>
+
+        {tiersInvalid && (
+          <div className="mt-3 space-y-1">
+            {tierErrors.map((err) => (
+              <p key={err} className="text-xs text-red-500">
+                {err}
+              </p>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-3.5 flex items-start gap-2 rounded-lg bg-slate-50 px-3 py-2.5 text-xs text-slate-500">
+          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+          <span>
+            Beyond the last tier&apos;s distance, customers see
+            &quot;outside our usual delivery range&quot; instead of an
+            automatic fee.
           </span>
         </div>
       </div>

@@ -39,7 +39,10 @@ export async function POST(request: Request) {
     }
 
     const distanceKm = haversineDistanceKm(origin, destination);
-    const { fee, inRange } = estimateDeliveryFee(distanceKm);
+    const { fee, inRange } = estimateDeliveryFee(
+      distanceKm,
+      settings.delivery_fee_tiers,
+    );
 
     return NextResponse.json({
       ok: true,

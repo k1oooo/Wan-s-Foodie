@@ -8,6 +8,7 @@ import {
   DEFAULT_PREORDER_MINIMUM_BOXES,
   DEFAULT_WHATSAPP_NUMBER,
 } from "@/lib/site-config";
+import { DEFAULT_DELIVERY_FEE_TIERS } from "@/lib/delivery/fee-tiers";
 
 const FALLBACK_SETTINGS: SiteSettings = {
   id: 1,
@@ -17,6 +18,7 @@ const FALLBACK_SETTINGS: SiteSettings = {
   preorder_minimum_boxes: DEFAULT_PREORDER_MINIMUM_BOXES,
   low_stock_threshold: DEFAULT_LOW_STOCK_THRESHOLD,
   monthly_order_limit_boxes: DEFAULT_MONTHLY_ORDER_LIMIT_BOXES,
+  delivery_fee_tiers: DEFAULT_DELIVERY_FEE_TIERS,
   updated_at: new Date(0).toISOString(),
 };
 
