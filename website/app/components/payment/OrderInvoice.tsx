@@ -120,18 +120,30 @@ export default function OrderInvoice({
         WhatsApp.
       </p>
 
-      <div className="mt-5 flex flex-col gap-2.5 sm:flex-row sm:justify-center">
-        <Button variant="outline" size="sm" onClick={onRetryWhatsApp}>
-          <RotateCcw size={16} /> Didn&apos;t open? Try again
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => generateReceiptPdf(order, pickupAddress)}
-        >
-          <FileDown size={16} /> Download Receipt
-        </Button>
-        <Button size="sm" onClick={onStartNewOrder}>
+      <div className="mt-5 space-y-2.5">
+        <div className="grid grid-cols-2 gap-2.5">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRetryWhatsApp}
+            className="w-full"
+            aria-label="Didn't open? Retry sending via WhatsApp"
+          >
+            <RotateCcw size={14} className="shrink-0" />
+            Retry
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => generateReceiptPdf(order, pickupAddress)}
+            className="w-full"
+            aria-label="Download order receipt as PDF"
+          >
+            <FileDown size={14} className="shrink-0" />
+            Receipt
+          </Button>
+        </div>
+        <Button size="sm" onClick={onStartNewOrder} className="w-full">
           Start a New Order
         </Button>
       </div>
