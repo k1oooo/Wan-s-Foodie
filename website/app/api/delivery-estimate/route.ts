@@ -62,9 +62,11 @@ export async function POST(request: Request) {
       // address to, so a wrong match (wrong township/state) is obvious
       // from the Network tab instead of guessing from distance alone.
       _debug: {
+        originQuery: settings.pickup_address,
         originMatched: origin.displayName,
-        destinationMatched: destination.displayName,
         originCoords: { lat: origin.lat, lon: origin.lon },
+        destinationQuery: address,
+        destinationMatched: destination.displayName,
         destinationCoords: { lat: destination.lat, lon: destination.lon },
       },
     });
