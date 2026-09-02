@@ -20,6 +20,9 @@ const LOCATIONIQ_URL = "https://us1.locationiq.com/v1/search";
 export interface Coordinates {
   lat: number;
   lon: number;
+  /** What LocationIQ actually matched the query to — surfaced by the
+   * /api/delivery-estimate route for debugging. Not shown to customers. */
+  displayName?: string;
 }
 
 export interface GeocodeBias {
@@ -96,14 +99,29 @@ export async function geocodeAddress(
       return null;
     }
 
-    const results = (await res.json()) as Array<{ lat: string; lon: string }>;
-    if (results.length === 0) return null;
+    const results = (await res.json()) as Array<{
+      lat: string;
+      lon: string;
+      display_name?: string;
+    }>;
+    if (results.length === 0) {
+      console.error(
+        `LocationIQ found no results for "${address}"${
+          options?.bias ? " within the biased viewbox" : ""
+        }.`,
+      );
+      return null;
+    }
 
     const lat = parseFloat(results[0].lat);
     const lon = parseFloat(results[0].lon);
     if (Number.isNaN(lat) || Number.isNaN(lon)) return null;
 
-    return { lat, lon };
+    console.log(
+      `Geocoded "${address}" -> (${lat}, ${lon}) — matched "${results[0].display_name}"`,
+    );
+
+    return { lat, lon, displayName: results[0].display_name };
   } catch (error) {
     console.error("LocationIQ geocode failed:", error);
     return null;

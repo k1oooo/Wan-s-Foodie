@@ -57,6 +57,16 @@ export async function POST(request: Request) {
       distanceKm: Math.round(distanceKm * 10) / 10,
       fee,
       inRange,
+      // Temporary debug fields — remove once the geocoding-bias issue is
+      // confirmed fixed. Shows exactly what LocationIQ matched the typed
+      // address to, so a wrong match (wrong township/state) is obvious
+      // from the Network tab instead of guessing from distance alone.
+      _debug: {
+        originMatched: origin.displayName,
+        destinationMatched: destination.displayName,
+        originCoords: { lat: origin.lat, lon: origin.lon },
+        destinationCoords: { lat: destination.lat, lon: destination.lon },
+      },
     });
   } catch (error) {
     console.error("Delivery estimate failed:", error);
