@@ -85,14 +85,24 @@ export function buildOrderMessage({
   for (const [category, items] of byCategory) {
     lines.push(`*${CATEGORY_LABELS[category] ?? category}*`);
     for (const item of items) {
+      const preorderTag = item.isPreorder ? " (Pre-order)" : "";
       lines.push(
-        `- ${item.name} x${item.quantity} box(es) — ${formatRM(item.price * item.quantity)}`,
+        `- ${item.name} x${item.quantity} box(es) — ${formatRM(item.price * item.quantity)}${preorderTag}`,
       );
     }
     lines.push("");
   }
 
   lines.push(`*Total: ${formatRM(getCartTotal(cart))}*`);
+
+  const preorderItems = Object.values(cart).filter((line) => line.isPreorder);
+  if (preorderItems.length > 0) {
+    lines.push("");
+    lines.push(
+      `*Note:* ${preorderItems.length === 1 ? "1 item is" : `${preorderItems.length} items are`} on pre-order and will be fulfilled once restocked.`,
+    );
+  }
+
   lines.push("");
   lines.push(
     `*Fulfilment:* ${deliveryMethod === "pickup" ? "Self pickup" : "Delivery"}`,

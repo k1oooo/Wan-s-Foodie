@@ -48,6 +48,10 @@ export interface OrderItem {
   quantity_boxes: number;
   price_at_order: number;
   subtotal: number;
+  /** True if this item was out of stock at the moment the customer added
+   * it to their cart — surfaced to Wan in the admin orders panel so she
+   * knows to fulfil it once restocked. */
+  is_preorder: boolean;
 }
 
 // Mirrors the `regular_customers` Supabase view

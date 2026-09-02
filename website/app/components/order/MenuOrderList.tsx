@@ -43,6 +43,7 @@ export default function MenuOrderList({
         name: item.name,
         category: item.category,
         price: item.price_per_box,
+        isPreorder: state === "preorder",
       },
       nextQty,
     );
@@ -64,6 +65,7 @@ export default function MenuOrderList({
         name: item.name,
         category: item.category,
         price: item.price_per_box,
+        isPreorder: state === "preorder",
       },
       nextQty,
     );

@@ -10,6 +10,7 @@ import {
   Phone,
   Lock,
   Clock,
+  Timer,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { Order, OrderStatus, PaymentStatus } from "../_lib/types";
@@ -256,6 +257,9 @@ export default function OrdersClient({
             {filtered.map((order) => {
               const isOpen = expandedId === order.id;
               const lock = getLockState(order.status_finalized_at, now);
+              const hasPreorderItem = order.items.some(
+                (item) => item.is_preorder,
+              );
 
               return (
                 <li key={order.id}>
@@ -302,6 +306,13 @@ export default function OrdersClient({
                         {order.collection_type}
                       </span>
 
+                      {hasPreorderItem && (
+                        <span className="flex items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700 ring-1 ring-inset ring-orange-200">
+                          <Timer className="h-3 w-3" />
+                          Pre-order
+                        </span>
+                      )}
+
                       {lock.isLocked && (
                         <span className="flex items-center gap-1 rounded-full bg-slate-800 px-2 py-0.5 text-xs font-medium text-white">
                           <Lock className="h-3 w-3" /> Locked
@@ -337,8 +348,14 @@ export default function OrdersClient({
                                 key={item.id}
                                 className="flex items-center justify-between text-sm text-slate-700"
                               >
-                                <span>
+                                <span className="flex items-center gap-1.5">
                                   {item.quantity_boxes} &times; {item.item_name}
+                                  {item.is_preorder && (
+                                    <span className="flex items-center gap-1 rounded-full bg-orange-50 px-1.5 py-0.5 text-[10px] font-medium text-orange-700 ring-1 ring-inset ring-orange-200">
+                                      <Timer className="h-2.5 w-2.5" />
+                                      Pre-order
+                                    </span>
+                                  )}
                                 </span>
 
                                 <span className="tabular-nums">

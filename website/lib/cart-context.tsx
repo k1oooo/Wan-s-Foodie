@@ -15,6 +15,12 @@ export interface CartLine {
   category: Category;
   price: number; // price_per_box at the time it was added
   quantity: number; // boxes
+  /** Snapshotted from getStockState() at the moment the item was added —
+   * true if it was out of stock (pre-order) at that point. Kept on the
+   * line itself rather than re-derived from live stock later so the
+   * WhatsApp message and order record reflect what the customer actually
+   * saw and agreed to, even if stock changes before they hit send. */
+  isPreorder: boolean;
 }
 
 export type CartState = Record<string, CartLine>; // key: menu_item id
@@ -22,7 +28,10 @@ export type CartState = Record<string, CartLine>; // key: menu_item id
 interface CartContextValue {
   cart: CartState;
   setQuantity: (
-    item: Pick<CartLine, "id" | "name" | "category" | "price">,
+    item: Pick<
+      CartLine,
+      "id" | "name" | "category" | "price" | "isPreorder"
+    >,
     quantity: number,
   ) => void;
   removeItem: (id: string) => void;
@@ -89,7 +98,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [cart, hasLoaded]);
 
   function setQuantity(
-    item: Pick<CartLine, "id" | "name" | "category" | "price">,
+    item: Pick<CartLine, "id" | "name" | "category" | "price" | "isPreorder">,
     quantity: number,
   ) {
     setCart((prev) => {

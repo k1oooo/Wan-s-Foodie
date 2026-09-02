@@ -52,6 +52,7 @@ export async function submitOrder({
     item_name: line.name,
     quantity_boxes: line.quantity,
     price_at_order: line.price,
+    is_preorder: line.isPreorder,
   }));
 
   const { data, error } = await supabase
