@@ -22,16 +22,34 @@ export interface Coordinates {
   lon: number;
 }
 
+export interface GeocodeBias {
+  lat: number;
+  lon: number;
+  /** How far the search is allowed to look before giving up on a
+   * within-area match, in kilometers. Deliberately generous relative to
+   * the delivery-fee tiers (which usually cap around 15km) — anything
+   * this far out already needs a manual WhatsApp quote either way, so
+   * there's no downside to erring wide here. */
+  radiusKm: number;
+}
+
 /**
  * Looks up coordinates for a free-text address. Returns null (rather than
  * throwing) on "not found", missing API key, or any network/parsing
  * failure, since a failed estimate should never block checkout — it just
  * means the delivery-fee estimate is skipped and the existing "confirmed
  * via WhatsApp" note is all the customer sees.
+ *
+ * `bias` restricts the search to a bounding box around a known point (the
+ * pickup address). This matters because Malaysian housing estates reuse
+ * grid-style street names (e.g. "Jalan 7A/6") across many unrelated
+ * townships nationwide — a customer typing a short address without a
+ * postcode/state has no way to disambiguate, so without a bias the
+ * geocoder can silently match a same-named street hundreds of km away.
  */
 export async function geocodeAddress(
   address: string,
-  options?: { revalidateSeconds?: number },
+  options?: { revalidateSeconds?: number; bias?: GeocodeBias },
 ): Promise<Coordinates | null> {
   const apiKey = process.env.LOCATIONIQ_API_KEY;
   if (!apiKey) {
@@ -41,9 +59,24 @@ export async function geocodeAddress(
     return null;
   }
 
-  const url = `${LOCATIONIQ_URL}?key=${apiKey}&format=json&limit=1&countrycodes=my&q=${encodeURIComponent(
+  let url = `${LOCATIONIQ_URL}?key=${apiKey}&format=json&limit=1&countrycodes=my&q=${encodeURIComponent(
     address,
   )}`;
+
+  if (options?.bias) {
+    const { lat, lon, radiusKm } = options.bias;
+    // Rough degree conversion — fine for a bounding box this size, no
+    // need for anything more precise than "roughly N km".
+    const latDelta = radiusKm / 111;
+    const lonDelta = radiusKm / (111 * Math.cos((lat * Math.PI) / 180));
+    const viewbox = [
+      lon - lonDelta,
+      lat + latDelta,
+      lon + lonDelta,
+      lat - latDelta,
+    ].join(",");
+    url += `&viewbox=${viewbox}&bounded=1`;
+  }
 
   try {
     const res = await fetch(url, {
