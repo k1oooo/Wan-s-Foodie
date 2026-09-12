@@ -1,11 +1,8 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
-import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { CartProvider } from "@/lib/cart-context";
-
-const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
 const supreme = localFont({
   src: "../public/fonts/Supreme-Regular.otf",
@@ -30,17 +27,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn(
-        "h-full",
-        "antialiased",
-        supreme.variable,
-        nunito.variable,
-        "font-sans",
-        geist.variable,
-      )}
+      className={cn("h-full", "antialiased", supreme.variable, nunito.variable, "font-sans")}
     >
       <body className="min-h-full flex flex-col bg-[#FBF7F2]">
-        {" "}
         <CartProvider>{children}</CartProvider>
       </body>
     </html>
