@@ -71,6 +71,13 @@ export interface Order {
   status: OrderStatus;
   payment_status: PaymentStatus;
   total_amount: number;
+  /** Manually set by admin, e.g. from a distance/weight-based quote given
+   * over WhatsApp. Defaults to 0 (and is irrelevant for pickup orders). */
+  delivery_fee: number;
+  /** Generated column: total_amount + delivery_fee. Always read this (not
+   * total_amount) wherever "what the customer actually pays/paid" matters
+   * — revenue reports, the orders list, receipts, etc. */
+  grand_total: number;
   notes?: string | null;
   created_at: string;
   /**

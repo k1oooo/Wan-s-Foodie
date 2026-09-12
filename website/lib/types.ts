@@ -88,6 +88,11 @@ export interface Order {
   status: OrderStatus;
   payment_status: PaymentStatus;
   total_amount: number;
+  /** Manually set by admin; defaults to 0 and is irrelevant for pickup
+   * orders. */
+  delivery_fee: number;
+  /** Generated column: total_amount + delivery_fee. */
+  grand_total: number;
   notes?: string | null;
   created_at: string;
 

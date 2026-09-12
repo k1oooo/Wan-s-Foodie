@@ -11,6 +11,7 @@ import {
   Lock,
   Clock,
   Timer,
+  Truck,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { Order, OrderStatus, PaymentStatus } from "../_lib/types";
@@ -73,6 +74,10 @@ export default function OrdersClient({
   const [pendingChange, setPendingChange] =
     useState<PendingStatusChange | null>(null);
   const [confirming, setConfirming] = useState(false);
+  // Local draft text for the delivery-fee input, keyed by order id — lets
+  // the customer type freely (including a blank field while clearing it)
+  // without every keystroke round-tripping to Supabase. Committed onBlur.
+  const [feeDrafts, setFeeDrafts] = useState<Record<string, string>>({});
 
   // Ticks every 30s so lock countdowns stay live without a full refetch.
   const [now, setNow] = useState(() => Date.now());
@@ -214,6 +219,85 @@ export default function OrdersClient({
     }
   }
 
+  async function updateDeliveryFee(id: string, deliveryFee: number) {
+    setSavingId(id);
+
+    const previous = orders;
+
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === id
+          ? {
+              ...o,
+              delivery_fee: deliveryFee,
+              grand_total: o.total_amount + deliveryFee,
+            }
+          : o,
+      ),
+    );
+
+    const order = orders.find((o) => o.id === id);
+
+    const supabase = createClient();
+
+    const { error } = await supabase
+      .from("orders")
+      .update({ delivery_fee: deliveryFee })
+      .eq("id", id);
+
+    setSavingId(null);
+
+    if (error) {
+      setOrders(previous);
+      setFeeDrafts((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      toast.error("Couldn't update delivery fee. Please try again.");
+    } else {
+      setFeeDrafts((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      toast.success(
+        `Delivery fee for order ${order?.order_number ?? ""} updated.`,
+      );
+      router.refresh();
+    }
+  }
+
+  function handleFeeBlur(order: Order) {
+    const draft = feeDrafts[order.id];
+    if (draft === undefined) return; // untouched, nothing to commit
+
+    const parsed = Number(draft);
+    if (draft.trim() === "" || Number.isNaN(parsed) || parsed < 0) {
+      // Invalid entry — discard the draft and fall back to the last
+      // saved fee rather than writing garbage to Supabase.
+      setFeeDrafts((prev) => {
+        const next = { ...prev };
+        delete next[order.id];
+        return next;
+      });
+      return;
+    }
+
+    const rounded = Math.round(parsed * 100) / 100;
+    if (rounded === order.delivery_fee) {
+      setFeeDrafts((prev) => {
+        const next = { ...prev };
+        delete next[order.id];
+        return next;
+      });
+      return;
+    }
+
+    updateDeliveryFee(order.id, rounded);
+  }
+
+
   return (
     <div className="space-y-4">
       {/* Filters */}
@@ -328,7 +412,7 @@ export default function OrdersClient({
 
                     <div className="text-right sm:w-24 sm:shrink-0">
                       <span className="font-medium tabular-nums text-slate-900">
-                        {formatRM(order.total_amount)}
+                        {formatRM(order.grand_total)}
                       </span>
                     </div>
                   </button>
@@ -364,6 +448,30 @@ export default function OrdersClient({
                               </li>
                             ))}
                           </ul>
+
+                          {(order.delivery_fee > 0 ||
+                            order.collection_type === "delivery") && (
+                            <div className="mt-2.5 space-y-1 border-t border-dashed border-slate-200 pt-2 text-sm">
+                              <div className="flex items-center justify-between text-slate-500">
+                                <span>Items subtotal</span>
+                                <span className="tabular-nums">
+                                  {formatRM(order.total_amount)}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between text-slate-500">
+                                <span>Delivery fee</span>
+                                <span className="tabular-nums">
+                                  {formatRM(order.delivery_fee)}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between font-medium text-slate-900">
+                                <span>Total</span>
+                                <span className="tabular-nums">
+                                  {formatRM(order.grand_total)}
+                                </span>
+                              </div>
+                            </div>
+                          )}
 
                           {order.notes && (
                             <p className="mt-3 rounded-lg bg-white p-2.5 text-xs text-slate-600 ring-1 ring-inset ring-slate-200">
@@ -486,6 +594,48 @@ export default function OrdersClient({
                                   </p>
                                 )}
                               </div>
+
+                              {order.collection_type === "delivery" && (
+                                <div>
+                                  <label
+                                    htmlFor={`delivery-fee-${order.id}`}
+                                    className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-500"
+                                  >
+                                    <Truck className="h-3.5 w-3.5" />
+                                    Delivery fee
+                                  </label>
+
+                                  <div className="relative mt-1">
+                                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
+                                      RM
+                                    </span>
+                                    <input
+                                      id={`delivery-fee-${order.id}`}
+                                      type="number"
+                                      min={0}
+                                      step={0.5}
+                                      inputMode="decimal"
+                                      disabled={savingId === order.id}
+                                      value={
+                                        feeDrafts[order.id] ??
+                                        order.delivery_fee.toFixed(2)
+                                      }
+                                      onChange={(e) =>
+                                        setFeeDrafts((prev) => ({
+                                          ...prev,
+                                          [order.id]: e.target.value,
+                                        }))
+                                      }
+                                      onBlur={() => handleFeeBlur(order)}
+                                      className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                                    />
+                                  </div>
+                                  <p className="mt-1.5 text-xs text-slate-500">
+                                    Added to the order total. Confirm with
+                                    the customer via WhatsApp first.
+                                  </p>
+                                </div>
+                              )}
                             </>
                           )}
                         </div>

@@ -13,6 +13,25 @@ import {
 import { submitOrder } from "@/lib/supabase/orders";
 import type { ConfirmedOrder } from "@/lib/order-utils";
 
+const MALAYSIA_STATES = [
+  "Johor",
+  "Kedah",
+  "Kelantan",
+  "Kuala Lumpur",
+  "Labuan",
+  "Melaka",
+  "Negeri Sembilan",
+  "Pahang",
+  "Penang",
+  "Perak",
+  "Perlis",
+  "Putrajaya",
+  "Sabah",
+  "Sarawak",
+  "Selangor",
+  "Terengganu",
+];
+
 interface OrderDetailsFormProps {
   /** Fired once the order is saved and the WhatsApp link is ready. The
    * parent (PaymentPageClient) owns the "is there a confirmed order" state
@@ -35,13 +54,31 @@ export default function OrderDetailsForm({
   const [customerPhone, setCustomerPhone] = useState("");
   const [deliveryMethod, setDeliveryMethod] =
     useState<DeliveryMethod>("pickup");
-  const [address, setAddress] = useState("");
+  // Delivery address is captured as three separate fields (street address,
+  // postcode, state) for clearer input/validation, then joined into a
+  // single string wherever the rest of the app expects one (DB column,
+  // WhatsApp message, geocoding) — see `address` below.
+  const [addressLine, setAddressLine] = useState("");
+  const [postcode, setPostcode] = useState("");
+  const [state, setState] = useState("");
+
+  const address =
+    deliveryMethod === "delivery"
+      ? [addressLine.trim(), [postcode.trim(), state].filter(Boolean).join(" ")]
+          .filter(Boolean)
+          .join(", ")
+      : "";
 
   type DeliveryEstimateState =
     | { status: "idle" }
     | { status: "loading" }
     | { status: "unavailable" }
-    | { status: "ready"; distanceKm: number; fee: number | null; inRange: boolean };
+    | {
+        status: "ready";
+        distanceKm: number;
+        fee: number | null;
+        inRange: boolean;
+      };
 
   const [deliveryEstimate, setDeliveryEstimate] =
     useState<DeliveryEstimateState>({ status: "idle" });
@@ -87,7 +124,9 @@ export default function OrderDetailsForm({
   const [touched, setTouched] = useState({
     name: false,
     phone: false,
-    address: false,
+    addressLine: false,
+    postcode: false,
+    state: false,
   });
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -95,7 +134,9 @@ export default function OrderDetailsForm({
 
   const nameRef = useRef<HTMLInputElement>(null);
   const phoneRef = useRef<HTMLInputElement>(null);
-  const addressRef = useRef<HTMLTextAreaElement>(null);
+  const addressLineRef = useRef<HTMLTextAreaElement>(null);
+  const postcodeRef = useRef<HTMLInputElement>(null);
+  const stateRef = useRef<HTMLSelectElement>(null);
 
   const hasItems = totalBoxes > 0;
   const nameError =
@@ -103,16 +144,49 @@ export default function OrderDetailsForm({
   const phoneDigits = customerPhone.replace(/\D/g, "");
   const phoneError =
     phoneDigits.length < 9 ? "Please enter a valid phone number." : null;
-  const addressError =
-    deliveryMethod === "delivery" && address.trim().length === 0
-      ? "Please enter your delivery address."
+  const addressLineError =
+    deliveryMethod === "delivery" && addressLine.trim().length === 0
+      ? "Please enter your street address."
+      : null;
+  const postcodeError =
+    deliveryMethod === "delivery" && !/^\d{5}$/.test(postcode.trim())
+      ? "Please enter a valid 5-digit postcode."
+      : null;
+  const stateError =
+    deliveryMethod === "delivery" && state.trim().length === 0
+      ? "Please select your state."
       : null;
 
-  const isValid = hasItems && !nameError && !phoneError && !addressError;
+  const isValid =
+    hasItems &&
+    !nameError &&
+    !phoneError &&
+    !addressLineError &&
+    !postcodeError &&
+    !stateError;
 
   const showNameError = (touched.name || submitAttempted) && nameError;
   const showPhoneError = (touched.phone || submitAttempted) && phoneError;
-  const showAddressError = (touched.address || submitAttempted) && addressError;
+  const showAddressLineError =
+    (touched.addressLine || submitAttempted) && addressLineError;
+  const showPostcodeError =
+    (touched.postcode || submitAttempted) && postcodeError;
+  const showStateError = (touched.state || submitAttempted) && stateError;
+
+  // Fires a delivery-fee lookup once all three delivery fields look
+  // complete enough to be worth geocoding — called from each field's
+  // onBlur so it doesn't matter which one the customer fills in last.
+  function maybeFetchDeliveryEstimate(
+    nextAddressLine: string,
+    nextPostcode: string,
+    nextState: string,
+  ) {
+    const line = nextAddressLine.trim();
+    const pc = nextPostcode.trim();
+    if (line.length >= 5 && /^\d{5}$/.test(pc) && nextState) {
+      fetchDeliveryEstimate(`${line}, ${pc} ${nextState}`);
+    }
+  }
 
   async function handleSendOrder() {
     setSubmitAttempted(true);
@@ -123,8 +197,12 @@ export default function OrderDetailsForm({
         nameRef.current?.focus();
       } else if (phoneError) {
         phoneRef.current?.focus();
-      } else if (addressError) {
-        addressRef.current?.focus();
+      } else if (addressLineError) {
+        addressLineRef.current?.focus();
+      } else if (postcodeError) {
+        postcodeRef.current?.focus();
+      } else if (stateError) {
+        stateRef.current?.focus();
       }
       return;
     }
@@ -332,9 +410,7 @@ export default function OrderDetailsForm({
                 <p className="font-nunito text-xs font-extrabold uppercase tracking-[0.1em] text-[#7A6F68]">
                   Pickup Address
                 </p>
-                <p className="mt-0.5 text-sm text-[#1F1A17]">
-                  {pickupAddress}
-                </p>
+                <p className="mt-0.5 text-sm text-[#1F1A17]">{pickupAddress}</p>
                 <a
                   href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
                     pickupAddress,
@@ -351,52 +427,143 @@ export default function OrderDetailsForm({
         )}
 
         {deliveryMethod === "delivery" && (
-          <div>
-            <label
-              htmlFor="delivery-address"
-              className="font-nunito text-xs font-extrabold uppercase tracking-[0.1em] text-[#7A6F68]"
-            >
-              Delivery Address
-            </label>
-            <textarea
-              ref={addressRef}
-              id="delivery-address"
-              required
-              value={address}
-              onChange={(e) => {
-                setAddress(e.target.value);
-                setDeliveryEstimate({ status: "idle" });
-              }}
-              onBlur={() => {
-                setTouched((prev) => ({ ...prev, address: true }));
-                const trimmed = address.trim();
-                // Skip firing on obviously-incomplete text — a couple
-                // words isn't enough for a useful geocode lookup anyway,
-                // and it avoids a wasted request on every stray blur.
-                if (trimmed.length >= 8) {
-                  fetchDeliveryEstimate(trimmed);
-                }
-              }}
-              rows={2}
-              placeholder="Street, unit, city, postcode"
-              aria-invalid={!!showAddressError}
-              aria-describedby={
-                showAddressError ? "delivery-address-error" : undefined
-              }
-              className={`mt-1.5 w-full rounded-xl border-2 bg-white px-3.5 py-2.5 text-sm text-[#1F1A17] outline-none ${
-                showAddressError
-                  ? "border-red-400 focus:border-red-400"
-                  : "border-[#1F1A17]/15 focus:border-[#C1442D]"
-              }`}
-            />
-            {showAddressError && (
-              <p
-                id="delivery-address-error"
-                className="mt-1 text-xs text-red-500"
+          <div className="space-y-3">
+            <div>
+              <label
+                htmlFor="delivery-address"
+                className="font-nunito text-xs font-extrabold uppercase tracking-[0.1em] text-[#7A6F68]"
               >
-                {addressError}
-              </p>
-            )}
+                Street Address
+              </label>
+              <textarea
+                ref={addressLineRef}
+                id="delivery-address"
+                required
+                value={addressLine}
+                onChange={(e) => {
+                  setAddressLine(e.target.value);
+                  setDeliveryEstimate({ status: "idle" });
+                }}
+                onBlur={() => {
+                  setTouched((prev) => ({ ...prev, addressLine: true }));
+                  maybeFetchDeliveryEstimate(addressLine, postcode, state);
+                }}
+                rows={2}
+                placeholder="Street, unit, city"
+                aria-invalid={!!showAddressLineError}
+                aria-describedby={
+                  showAddressLineError ? "delivery-address-error" : undefined
+                }
+                className={`mt-1.5 w-full rounded-xl border-2 bg-white px-3.5 py-2.5 text-sm text-[#1F1A17] outline-none ${
+                  showAddressLineError
+                    ? "border-red-400 focus:border-red-400"
+                    : "border-[#1F1A17]/15 focus:border-[#C1442D]"
+                }`}
+              />
+              {showAddressLineError && (
+                <p
+                  id="delivery-address-error"
+                  className="mt-1 text-xs text-red-500"
+                >
+                  {addressLineError}
+                </p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <div>
+                <label
+                  htmlFor="delivery-postcode"
+                  className="font-nunito text-xs font-extrabold uppercase tracking-[0.1em] text-[#7A6F68]"
+                >
+                  Postcode
+                </label>
+                <input
+                  ref={postcodeRef}
+                  id="delivery-postcode"
+                  required
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={5}
+                  value={postcode}
+                  onChange={(e) => {
+                    setPostcode(e.target.value.replace(/\D/g, "").slice(0, 5));
+                    setDeliveryEstimate({ status: "idle" });
+                  }}
+                  onBlur={() => {
+                    setTouched((prev) => ({ ...prev, postcode: true }));
+                    maybeFetchDeliveryEstimate(addressLine, postcode, state);
+                  }}
+                  placeholder="e.g. 53000"
+                  aria-invalid={!!showPostcodeError}
+                  aria-describedby={
+                    showPostcodeError ? "delivery-postcode-error" : undefined
+                  }
+                  className={`mt-1.5 w-full rounded-xl border-2 bg-white px-3.5 py-2.5 text-sm text-[#1F1A17] outline-none ${
+                    showPostcodeError
+                      ? "border-red-400 focus:border-red-400"
+                      : "border-[#1F1A17]/15 focus:border-[#C1442D]"
+                  }`}
+                />
+                {showPostcodeError && (
+                  <p
+                    id="delivery-postcode-error"
+                    className="mt-1 text-xs text-red-500"
+                  >
+                    {postcodeError}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label
+                  htmlFor="delivery-state"
+                  className="font-nunito text-xs font-extrabold uppercase tracking-[0.1em] text-[#7A6F68]"
+                >
+                  State
+                </label>
+                <select
+                  ref={stateRef}
+                  id="delivery-state"
+                  required
+                  value={state}
+                  onChange={(e) => {
+                    setState(e.target.value);
+                    setDeliveryEstimate({ status: "idle" });
+                  }}
+                  onBlur={() => {
+                    setTouched((prev) => ({ ...prev, state: true }));
+                    maybeFetchDeliveryEstimate(addressLine, postcode, state);
+                  }}
+                  aria-invalid={!!showStateError}
+                  aria-describedby={
+                    showStateError ? "delivery-state-error" : undefined
+                  }
+                  className={`mt-1.5 w-full rounded-xl border-2 bg-white px-3 py-2.5 text-sm text-[#1F1A17] outline-none ${
+                    showStateError
+                      ? "border-red-400 focus:border-red-400"
+                      : "border-[#1F1A17]/15 focus:border-[#C1442D]"
+                  } ${state ? "" : "text-[#7A6F68]"}`}
+                >
+                  <option value="" disabled>
+                    Select
+                  </option>
+                  {MALAYSIA_STATES.map((s) => (
+                    <option key={s} value={s} className="text-[#1F1A17]">
+                      {s}
+                    </option>
+                  ))}
+                </select>
+                {showStateError && (
+                  <p
+                    id="delivery-state-error"
+                    className="mt-1 text-xs text-red-500"
+                  >
+                    {stateError}
+                  </p>
+                )}
+              </div>
+            </div>
             {deliveryEstimate.status === "loading" && (
               <p className="mt-1.5 flex items-center gap-1.5 text-xs text-[#7A6F68]">
                 <Loader2 className="h-3 w-3 animate-spin" />
@@ -407,8 +574,8 @@ export default function OrderDetailsForm({
               deliveryEstimate.inRange && (
                 <p className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-[#C1442D]">
                   <MapPin className="h-3 w-3 shrink-0" />
-                  Estimated delivery fee: {formatRM(deliveryEstimate.fee!)}{" "}
-                  (~{deliveryEstimate.distanceKm}km)
+                  Estimated delivery fee: {formatRM(deliveryEstimate.fee!)} (~
+                  {deliveryEstimate.distanceKm}km)
                 </p>
               )}
             {deliveryEstimate.status === "ready" &&

@@ -44,9 +44,6 @@ export default async function HomePage() {
       <Navbar />
 
       <main>
-        {/* Each section below is min-h-screen and self-contained (own
-            background + scallop dividers), so scrolling through the page
-            reads as one full-viewport "slide" per section. */}
         <Hero />
         <About />
         <Menu />

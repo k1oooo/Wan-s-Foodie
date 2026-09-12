@@ -50,7 +50,7 @@ export default function DashboardClient({
   regularCustomers,
 }: DashboardClientProps) {
   const paidOrders = monthOrders.filter((o) => o.payment_status === "paid");
-  const totalRevenue = paidOrders.reduce((sum, o) => sum + o.total_amount, 0);
+  const totalRevenue = paidOrders.reduce((sum, o) => sum + o.grand_total, 0);
   const pendingCount = monthOrders.filter((o) => o.status === "pending").length;
 
   const boxesByItem = new Map<
@@ -253,7 +253,7 @@ export default function DashboardClient({
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-slate-900 sm:px-5">
-                      {formatRM(order.total_amount)}
+                      {formatRM(order.grand_total)}
                     </td>
                   </tr>
                 ))

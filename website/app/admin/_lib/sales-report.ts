@@ -72,7 +72,7 @@ export async function generateSalesReportPdf(): Promise<void> {
   });
 
   const paidOrders = monthOrders.filter((o) => o.payment_status === "paid");
-  const totalRevenue = paidOrders.reduce((sum, o) => sum + o.total_amount, 0);
+  const totalRevenue = paidOrders.reduce((sum, o) => sum + o.grand_total, 0);
   const pendingCount = monthOrders.filter((o) => o.status === "pending").length;
 
   const boxesByItem = new Map<
@@ -292,7 +292,7 @@ export async function generateSalesReportPdf(): Promise<void> {
         order.customer_name,
         ORDER_STATUS_STYLE[order.status].label,
         PAYMENT_STATUS_STYLE[order.payment_status].label,
-        formatRM(order.total_amount),
+        formatRM(order.grand_total),
       ]),
       columnStyles: { 4: { halign: "right" } },
       didParseCell: (data) => {
