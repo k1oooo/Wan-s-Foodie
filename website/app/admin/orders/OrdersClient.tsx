@@ -12,6 +12,7 @@ import {
   Clock,
   Timer,
   Truck,
+  FileDown,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { Order, OrderStatus, PaymentStatus } from "../_lib/types";
@@ -28,6 +29,9 @@ import {
 import ConfirmDialog from "../_components/ConfirmDialog";
 import StyledSelect from "../_components/StyledSelect";
 import { toast } from "sonner";
+import { generateReceiptPdf } from "@/lib/receipt-pdf";
+import { normalizeAddressText } from "@/lib/address";
+import type { ConfirmedOrder } from "@/lib/order-utils";
 
 function formatRM(amount: number) {
   return `RM ${amount.toFixed(2)}`;
@@ -60,10 +64,46 @@ interface PendingStatusChange {
   status: OrderStatus;
 }
 
+async function downloadReceipt(order: Order, pickupAddress: string) {
+  const receipt: ConfirmedOrder = {
+    orderNumber: order.order_number,
+    items: order.items.map((item) => ({
+      id: item.id,
+      name: item.item_name,
+      price: item.price_at_order,
+      quantity: item.quantity_boxes,
+    })),
+    total: order.total_amount,
+    customerName: order.customer_name,
+    customerPhone: order.customer_phone,
+    deliveryMethod: order.collection_type,
+    address: normalizeAddressText(order.delivery_address),
+    sentAt: order.created_at,
+    // The fee saved on the order: starts as the customer's checkout
+    // estimate and is whatever the admin last set here, so it's shown as
+    // a final figure. 0 means no fee has been set yet.
+    deliveryFee:
+      order.collection_type === "delivery" && order.delivery_fee > 0
+        ? order.delivery_fee
+        : null,
+    deliveryFeeIsEstimate: false,
+    paymentStatus: order.payment_status,
+  };
+
+  try {
+    await generateReceiptPdf(receipt, pickupAddress);
+  } catch (error) {
+    console.error("Failed to generate receipt:", error);
+    toast.error("Couldn't generate the receipt. Please try again.");
+  }
+}
+
 export default function OrdersClient({
   initialOrders,
+  pickupAddress,
 }: {
   initialOrders: Order[];
+  pickupAddress: string;
 }) {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>(initialOrders);
@@ -297,7 +337,6 @@ export default function OrdersClient({
     updateDeliveryFee(order.id, rounded);
   }
 
-
   return (
     <div className="space-y-4">
       {/* Filters */}
@@ -488,7 +527,7 @@ export default function OrdersClient({
                             {order.collection_type === "delivery" ? (
                               <>
                                 <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                                {order.delivery_address}
+                                {normalizeAddressText(order.delivery_address)}
                               </>
                             ) : (
                               <>
@@ -501,6 +540,16 @@ export default function OrdersClient({
 
                         {/* Actions */}
                         <div className="space-y-3">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              downloadReceipt(order, pickupAddress)
+                            }
+                            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                          >
+                            <FileDown className="h-4 w-4" />
+                            Download receipt
+                          </button>
                           {lock.isLocked ? (
                             <div className="rounded-lg border border-slate-200 bg-white p-3">
                               <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
@@ -631,8 +680,10 @@ export default function OrdersClient({
                                     />
                                   </div>
                                   <p className="mt-1.5 text-xs text-slate-500">
-                                    Added to the order total. Confirm with
-                                    the customer via WhatsApp first.
+                                    Starts as the customer&apos;s estimate from
+                                    checkout. Change it if needed — it&apos;s
+                                    added to the order total and shown on the
+                                    receipt.
                                   </p>
                                 </div>
                               )}

@@ -272,7 +272,17 @@ export default function MenuClient({
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            {/* table-fixed + shared column widths so every category's table
+                lines up identically, regardless of its item names. */}
+            <table className="w-full min-w-[640px] table-fixed text-sm">
+              <colgroup>
+                <col className="w-[30%]" />
+                <col className="w-[14%]" />
+                <col className="w-[18%]" />
+                <col className="w-[14%]" />
+                <col className="w-[14%]" />
+                <col className="w-[10%]" />
+              </colgroup>
               <thead>
                 <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                   <th className="px-4 py-2.5 sm:px-5">Item</th>

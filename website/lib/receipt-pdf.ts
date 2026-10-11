@@ -1,5 +1,5 @@
 import type { ConfirmedOrder } from "@/lib/order-utils";
-import { formatRM } from "@/lib/order-utils";
+import { formatRM, getReceiptTotals } from "@/lib/order-utils";
 
 type RGB = [number, number, number];
 
@@ -102,14 +102,49 @@ export async function generateReceiptPdf(
   });
   y = (doc.lastAutoTable?.finalY ?? y) + 8;
 
-  // ---- Total ----
+  // ---- Totals ----
+  const totals = getReceiptTotals(order);
+
+  if (totals.isDelivery) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(...BRAND.muted);
+    doc.text("Subtotal", marginX, y);
+    doc.setTextColor(...BRAND.nearBlack);
+    doc.text(formatRM(order.total), pageWidth - marginX, y, {
+      align: "right",
+    });
+    y += 6;
+
+    doc.setTextColor(...BRAND.muted);
+    doc.text(totals.feeLabel, marginX, y);
+    doc.setTextColor(...(totals.hasFee ? BRAND.nearBlack : BRAND.muted));
+    doc.text(totals.feeValue, pageWidth - marginX, y, { align: "right" });
+    y += 8;
+  }
+
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.setTextColor(...BRAND.nearBlack);
-  doc.text("Total", marginX, y);
+  doc.text(totals.totalLabel, marginX, y);
   doc.setTextColor(...BRAND.terracotta);
-  doc.text(formatRM(order.total), pageWidth - marginX, y, { align: "right" });
-  y += 10;
+  doc.text(formatRM(totals.totalAmount), pageWidth - marginX, y, {
+    align: "right",
+  });
+  y += 6;
+
+  if (totals.isDelivery && totals.isEstimate) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...BRAND.muted);
+    doc.text(
+      "Delivery fee is an estimate — final fee confirmed via WhatsApp.",
+      marginX,
+      y,
+    );
+    y += 4;
+  }
+  y += 6;
 
   // ---- Customer + fulfilment details ----
   doc.setDrawColor(...BRAND.gold);
@@ -156,7 +191,11 @@ export async function generateReceiptPdf(
   // ---- Payment note ----
   doc.setFillColor(...BRAND.cream);
   const noteText =
-    "Pay via DuitNow QR — sent once your order is confirmed on WhatsApp.";
+    order.paymentStatus === "paid"
+      ? "Payment received. Thank you!"
+      : order.paymentStatus === "refunded"
+        ? "This order has been refunded."
+        : "Pay via DuitNow QR — sent once your order is confirmed on WhatsApp.";
   const noteLines = doc.splitTextToSize(noteText, pageWidth - marginX * 2 - 10);
   const noteHeight = noteLines.length * 5 + 8;
   doc.roundedRect(marginX, y, pageWidth - marginX * 2, noteHeight, 3, 3, "F");

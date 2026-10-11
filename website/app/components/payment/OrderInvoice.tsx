@@ -4,6 +4,7 @@ import { CheckCircle2, FileDown, RotateCcw, Store, Truck } from "lucide-react";
 import Button from "@/app/ui/Button";
 import {
   formatRM,
+  getReceiptTotals,
   type ConfirmedOrder,
 } from "@/lib/order-utils";
 import { generateReceiptPdf } from "@/lib/receipt-pdf";
@@ -29,6 +30,8 @@ export default function OrderInvoice({
     hour: "2-digit",
     minute: "2-digit",
   });
+
+  const totals = getReceiptTotals(order);
 
   return (
     <div className="rounded-[28px] border-2 border-dashed border-[#1F1A17]/20 bg-white p-5 shadow-sm sm:p-6">
@@ -70,10 +73,35 @@ export default function OrderInvoice({
         ))}
       </div>
 
-      <div className="mt-3 flex items-center justify-between border-t border-dashed border-[#1F1A17]/20 pt-3 font-nunito text-base font-extrabold text-[#1F1A17]">
-        <span>Total</span>
-        <span className="text-[#C1442D]">{formatRM(order.total)}</span>
+      {totals.isDelivery && (
+        <div className="mt-3 space-y-1.5 border-t border-dashed border-[#1F1A17]/20 pt-3 text-sm text-[#1F1A17]">
+          <div className="flex items-center justify-between">
+            <span className="text-[#7A6F68]">Subtotal</span>
+            <span className="tabular-nums">{formatRM(order.total)}</span>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[#7A6F68]">{totals.feeLabel}</span>
+            <span
+              className={`tabular-nums ${totals.hasFee ? "" : "text-[#7A6F68]"}`}
+            >
+              {totals.feeValue}
+            </span>
+          </div>
+        </div>
+      )}
+
+      <div
+        className={`${totals.isDelivery ? "mt-2" : "mt-3"} flex items-center justify-between ${totals.isDelivery ? "" : "border-t border-dashed border-[#1F1A17]/20 pt-3"} font-nunito text-base font-extrabold text-[#1F1A17]`}
+      >
+        <span>{totals.totalLabel}</span>
+        <span className="text-[#C1442D]">{formatRM(totals.totalAmount)}</span>
       </div>
+      {totals.isDelivery && (
+        <p className="mt-1 text-xs text-[#7A6F68]">
+          Delivery fee is an estimate based on distance — the final fee is
+          confirmed with you on WhatsApp.
+        </p>
+      )}
 
       {/* Customer + fulfilment info */}
       <div className="mt-4 space-y-1.5 border-t border-dashed border-[#1F1A17]/20 pt-3.5 text-sm text-[#1F1A17]">

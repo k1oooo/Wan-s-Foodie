@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AlertCircle, Loader2, MapPin, MessageCircle } from "lucide-react";
 import Button from "@/app/ui/Button";
@@ -11,6 +11,7 @@ import {
   type DeliveryMethod,
 } from "@/lib/order-utils";
 import { submitOrder } from "@/lib/supabase/orders";
+import { formatDeliveryAddress } from "@/lib/address";
 import type { ConfirmedOrder } from "@/lib/order-utils";
 
 const MALAYSIA_STATES = [
@@ -64,9 +65,7 @@ export default function OrderDetailsForm({
 
   const address =
     deliveryMethod === "delivery"
-      ? [addressLine.trim(), [postcode.trim(), state].filter(Boolean).join(" ")]
-          .filter(Boolean)
-          .join(", ")
+      ? formatDeliveryAddress(addressLine, postcode, state)
       : "";
 
   type DeliveryEstimateState =
@@ -87,7 +86,7 @@ export default function OrderDetailsForm({
   // lookup finishes.
   const estimateRequestId = useRef(0);
 
-  async function fetchDeliveryEstimate(addr: string) {
+  const fetchDeliveryEstimate = useCallback(async (addr: string) => {
     const requestId = ++estimateRequestId.current;
     setDeliveryEstimate({ status: "loading" });
 
@@ -119,7 +118,7 @@ export default function OrderDetailsForm({
       if (requestId !== estimateRequestId.current) return;
       setDeliveryEstimate({ status: "unavailable" });
     }
-  }
+  }, []);
 
   const [touched, setTouched] = useState({
     name: false,
@@ -173,22 +172,43 @@ export default function OrderDetailsForm({
     (touched.postcode || submitAttempted) && postcodeError;
   const showStateError = (touched.state || submitAttempted) && stateError;
 
-  // Fires a delivery-fee lookup once all three delivery fields look
-  // complete enough to be worth geocoding — called from each field's
-  // onBlur so it doesn't matter which one the customer fills in last.
-  function maybeFetchDeliveryEstimate(
-    nextAddressLine: string,
-    nextPostcode: string,
-    nextState: string,
-  ) {
-    const line = nextAddressLine.trim();
-    const pc = nextPostcode.trim();
-    if (line.length >= 5 && /^\d{5}$/.test(pc) && nextState) {
-      fetchDeliveryEstimate(`${line}, ${pc} ${nextState}`);
-    }
-  }
+  // True once all three delivery fields look complete enough to be worth
+  // geocoding. The estimate then runs automatically (debounced) so it
+  // doesn't depend on which field the customer happens to blur last.
+  const deliveryFieldsComplete =
+    deliveryMethod === "delivery" &&
+    addressLine.trim().length >= 5 &&
+    /^\d{5}$/.test(postcode.trim()) &&
+    state !== "";
+
+  useEffect(() => {
+    if (!deliveryFieldsComplete) return;
+    const timer = setTimeout(() => {
+      fetchDeliveryEstimate(
+        formatDeliveryAddress(addressLine, postcode, state),
+      );
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [
+    deliveryFieldsComplete,
+    addressLine,
+    postcode,
+    state,
+    fetchDeliveryEstimate,
+  ]);
+
+  // The Send button stays disabled while the estimate is calculating, or
+  // about to start (fields complete but the debounce hasn't fired yet), so
+  // the fee in the order is never missing just because the customer was
+  // quick. A failed lookup ("unavailable") does NOT block sending — the
+  // fee is simply confirmed on WhatsApp instead.
+  const isEstimatePending =
+    deliveryMethod === "delivery" &&
+    (deliveryEstimate.status === "loading" ||
+      (deliveryEstimate.status === "idle" && deliveryFieldsComplete));
 
   async function handleSendOrder() {
+    if (isEstimatePending) return;
     setSubmitAttempted(true);
     setSubmitError(null);
 
@@ -229,6 +249,8 @@ export default function OrderDetailsForm({
         customerPhone,
         deliveryMethod,
         address,
+        estimatedDeliveryFee:
+          deliveryEstimate.status === "ready" ? deliveryEstimate.fee : null,
       });
 
       const whatsAppHref = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
@@ -279,6 +301,15 @@ export default function OrderDetailsForm({
           deliveryMethod,
           address: address.trim(),
           sentAt: new Date().toISOString(),
+          deliveryFee:
+            deliveryMethod === "delivery" && deliveryEstimate.status === "ready"
+              ? deliveryEstimate.fee
+              : null,
+          deliveryFeeIsEstimate: true,
+          deliveryDistanceKm:
+            deliveryMethod === "delivery" && deliveryEstimate.status === "ready"
+              ? deliveryEstimate.distanceKm
+              : null,
         },
         whatsAppHref,
       );
@@ -446,7 +477,6 @@ export default function OrderDetailsForm({
                 }}
                 onBlur={() => {
                   setTouched((prev) => ({ ...prev, addressLine: true }));
-                  maybeFetchDeliveryEstimate(addressLine, postcode, state);
                 }}
                 rows={2}
                 placeholder="Street, unit, city"
@@ -492,7 +522,6 @@ export default function OrderDetailsForm({
                   }}
                   onBlur={() => {
                     setTouched((prev) => ({ ...prev, postcode: true }));
-                    maybeFetchDeliveryEstimate(addressLine, postcode, state);
                   }}
                   placeholder="e.g. 53000"
                   aria-invalid={!!showPostcodeError}
@@ -533,7 +562,6 @@ export default function OrderDetailsForm({
                   }}
                   onBlur={() => {
                     setTouched((prev) => ({ ...prev, state: true }));
-                    maybeFetchDeliveryEstimate(addressLine, postcode, state);
                   }}
                   aria-invalid={!!showStateError}
                   aria-describedby={
@@ -631,11 +659,19 @@ export default function OrderDetailsForm({
 
       <Button
         onClick={handleSendOrder}
-        disabled={!hasItems || isSubmitting}
+        disabled={!hasItems || isSubmitting || isEstimatePending}
         className="mt-4 w-full"
       >
-        <MessageCircle size={20} />
-        {isSubmitting ? "Sending..." : "Send Order"}
+        {isEstimatePending ? (
+          <Loader2 size={20} className="animate-spin" />
+        ) : (
+          <MessageCircle size={20} />
+        )}
+        {isSubmitting
+          ? "Sending..."
+          : isEstimatePending
+            ? "Calculating delivery fee..."
+            : "Send Order"}
       </Button>
     </div>
   );
